@@ -1,0 +1,410 @@
+/* 全局样式 */
+QWidget {
+    font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    color: #333333;
+    background-color: #F9F9F9;
+}
+
+/* 主窗口背景 */
+QMainWindow {
+    background-color: #F9F9F9;
+}
+
+/* 按钮样式 */
+QPushButton {
+    background-color: #FFFFFF;
+    border: 1px solid #DDDDDD;
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: #444444;
+}
+
+QPushButton:hover {
+    background-color: #F0F0F0;
+    border-color: #CCCCCC;
+}
+
+QPushButton:pressed {
+    background-color: #E5E5E5;
+}
+
+QPushButton:checked {
+    background-color: #5E97F6;
+    color: white;
+    border-color: #4A85E8;
+}
+
+QPushButton:flat {
+    border: none;
+    background-color: transparent;
+}
+
+QPushButton:flat:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 搜索框样式 */
+QLineEdit {
+    border: 1px solid #DDDDDD;
+    border-radius: 4px;
+    padding: 4px 8px;
+    background-color: white;
+    selection-background-color: #5E97F6;
+}
+
+QLineEdit:focus {
+    border-color: #5E97F6;
+    border-width: 2px;
+}
+
+/* 列表控件样式 */
+QListWidget {
+    border: 1px solid #DDDDDD;
+    border-radius: 6px;
+    background-color: white;
+    outline: none;
+    padding: 4px;
+}
+
+QListWidget::item {
+    border-radius: 4px;
+    padding: 8px;
+    margin: 2px;
+}
+
+QListWidget::item:selected {
+    background-color: #E3F2FD;
+    color: #1A73E8;
+}
+
+QListWidget::item:hover {
+    background-color: #F5F5F5;
+}
+
+/* 侧边栏列表样式 */
+#windowListWidget {
+    background-color: #263238;
+    border-right: none;
+    border-left: none;
+    border-top: none;
+    border-bottom: none;
+    border-radius: 0px;
+    box-shadow: 2px 0px 8px rgba(0, 0, 0, 0.15);
+}
+
+#windowListWidget::item {
+    padding: 15px 10px;
+    border-radius: 0px;
+    border-bottom: 1px solid #37474F;
+    color: #ECEFF1;
+}
+
+#windowListWidget::item:selected {
+    background-color: #1E88E5;
+    color: white;
+}
+
+#windowListWidget::item:hover {
+    background-color: #37474F;
+}
+
+/* 标签样式 */
+QLabel {
+    color: #444444;
+}
+
+QLabel#titleLabel, QLabel#favTitleLabel, QLabel#categoryTitleLabel, QLabel#bookTitleLabel {
+    font-size: 20px;
+    font-weight: bold;
+    color: #1976D2;
+}
+
+/* 阅读窗口样式 */
+QTextBrowser {
+    background-color: #FFFFFF;
+    border: 1px solid #DDDDDD;
+    border-radius: 6px;
+    padding: 20px;
+    selection-background-color: #5E97F6;
+    selection-color: white;
+    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+QTextBrowser#readerTextBrowser {
+    font-family: "Noto Serif", "Times New Roman", serif;
+    font-size: 14pt;
+    line-height: 1.8;
+    color: #1C2833;
+    background-color: #FEF9E7;
+}
+
+/* 滚动条样式 */
+QScrollBar:vertical {
+    border: none;
+    background: #F5F5F5;
+    width: 10px;
+    border-radius: 5px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background: #BBBBBB;
+    border-radius: 5px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #999999;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    border: none;
+    background: #F5F5F5;
+    height: 10px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #BBBBBB;
+    border-radius: 5px;
+    min-width: 20px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #999999;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* 状态栏样式 */
+QStatusBar {
+    background-color: #F2F2F2;
+    color: #666666;
+    border-top: 1px solid #DDDDDD;
+}
+
+/* 分类显示样式 */
+#categoriesListWidget {
+    background-color: #FFFFFF;
+    border: 1px solid #DDDDDD;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+#categoriesListWidget::item {
+    border: 1px solid #EEEEEE;
+    background-color: #FFFFFF;
+    border-radius: 10px;
+    margin: 8px;
+    min-width: 120px;
+    min-height: 110px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+#categoriesListWidget::item:hover {
+    background-color: #E8F5E9;
+    border-color: #A5D6A7;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+}
+
+#categoriesListWidget::item:selected {
+    background-color: #C8E6C9;
+    border-color: #81C784;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* 书籍列表项样式 */
+#allBooksListWidget::item, #favPageListWidget::item, #categoryListWidget::item {
+    border-bottom: 1px solid #EEEEEE;
+    border-radius: 4px;
+    padding: 12px 8px;
+    margin: 2px 4px;
+}
+
+#allBooksListWidget::item:hover, #favPageListWidget::item:hover, #categoryListWidget::item:hover {
+    background-color: #F1F8E9;
+}
+
+#allBooksListWidget::item:selected, #favPageListWidget::item:selected, #categoryListWidget::item:selected {
+    background-color: #DCEDC8;
+    border-left: 4px solid #8BC34A;
+}
+
+/* 夜间模式下书籍列表项特殊样式 - 使用自定义属性选择器 */
+.dark-theme #allBooksListWidget::item, .dark-theme #favPageListWidget::item, .dark-theme #categoryListWidget::item {
+    background-color: #1E1E1E;
+    border-bottom: 1px solid #292929;
+    color: #B0B0B0;
+}
+
+.dark-theme #allBooksListWidget::item:hover, .dark-theme #favPageListWidget::item:hover, .dark-theme #categoryListWidget::item:hover {
+    background-color: #252525;
+}
+
+.dark-theme #allBooksListWidget::item:selected, .dark-theme #favPageListWidget::item:selected, .dark-theme #categoryListWidget::item:selected {
+    background-color: #1A2930;
+    border-left: 4px solid #45705E;
+}
+
+/* 夜间模式下分类卡片样式 */
+.dark-theme #categoriesListWidget::item {
+    background-color: #1E1E1E;
+    border: 1px solid #292929;
+    color: #B0B0B0;
+}
+
+.dark-theme #categoriesListWidget::item:hover {
+    background-color: #252525;
+    border-color: #333333;
+}
+
+.dark-theme #categoriesListWidget::item:selected {
+    background-color: #1A2930;
+    border-color: #333333;
+}
+
+/* 头部小部件样式 */
+#headerWidget, #favHeaderWidget, #categoryHeaderWidget, #readerHeaderWidget, #categoriesHeader {
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #EEEEEE;
+    padding: 4px;
+    box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* 阅读器工具栏样式 */
+#readerToolbarWidget {
+    background-color: #FFFFFF;
+    border-top: 1px solid #EEEEEE;
+    border-radius: 0 0 6px 6px;
+    padding: 4px 8px;
+    box-shadow: 0px -2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* 滑块样式 */
+QSlider::groove:horizontal {
+    border: none;
+    height: 8px;
+    background: #E0E0E0;
+    margin: 2px 0;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: #42A5F5;
+    border: 2px solid #2196F3;
+    width: 18px;
+    height: 18px;
+    margin: -6px 0;
+    border-radius: 9px;
+    box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+QSlider::handle:horizontal:hover {
+    background: #2196F3;
+    border-color: #1976D2;
+}
+
+/* 工具按钮样式 */
+QPushButton[flat="true"] {
+    background-color: transparent;
+    border: none;
+    border-radius: 20px;
+    min-width: 40px;
+    min-height: 40px;
+}
+
+QPushButton[flat="true"]:hover {
+    background-color: rgba(33, 150, 243, 0.12);
+}
+
+QPushButton[flat="true"]:pressed {
+    background-color: rgba(33, 150, 243, 0.2);
+}
+
+/* 翻页按钮特殊样式 */
+#prevPageButton, #nextPageButton, #fontSizeDecreaseButton, #fontSizeIncreaseButton {
+    border-radius: 20px;
+    min-width: 40px;
+    min-height: 40px;
+    font-weight: bold;
+}
+
+#prevPageButton:hover, #nextPageButton:hover, #fontSizeDecreaseButton:hover, #fontSizeIncreaseButton:hover {
+    background-color: rgba(33, 150, 243, 0.15);
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#prevPageButton:pressed, #nextPageButton:pressed, #fontSizeDecreaseButton:pressed, #fontSizeIncreaseButton:pressed {
+    background-color: rgba(33, 150, 243, 0.25);
+}
+
+/* 排序按钮样式 */
+QPushButton[checkable="true"] {
+    background-color: #FFFFFF;
+    border: 1px solid #DDDDDD;
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: #444444;
+}
+
+QPushButton[checkable="true"]:checked {
+    background-color: #2196F3;
+    color: white;
+    border-color: #1976D2;
+    box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+QPushButton[checkable="true"]:hover {
+    background-color: #F0F0F0;
+    border-color: #CCCCCC;
+}
+
+/* 添加书籍和添加分类按钮 */
+#addBookButton, #addCategoryButton {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    font-weight: bold;
+    border-radius: 6px;
+    padding: 8px 16px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#addBookButton:hover, #addCategoryButton:hover {
+    background-color: #43A047;
+    box-shadow: 0px 3px 7px rgba(0, 0, 0, 0.15);
+}
+
+#addBookButton:pressed, #addCategoryButton:pressed {
+    background-color: #388E3C;
+    box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 书籍操作按钮 */
+#bookmarkButton, #addToButton, #closeBookButton {
+    background-color: #F5F5F5;
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-weight: normal;
+}
+
+#bookmarkButton:hover, #addToButton:hover, #closeBookButton:hover {
+    background-color: #EEEEEE;
+    border-color: #BDBDBD;
+    box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#bookmarkButton:pressed, #addToButton:pressed, #closeBookButton:pressed {
+    background-color: #E0E0E0;
+} 
