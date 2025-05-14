@@ -23,7 +23,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <QtRcc Include="reader.qrc">
+    <QtRcc Include="resources.qrc">
       <Filter>Resource Files</Filter>
     </QtRcc>
     <QtUic Include="reader.ui">

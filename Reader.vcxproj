@@ -101,7 +101,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <QtRcc Include="reader.qrc" />
+    <QtRcc Include="resources.qrc" />
     <QtUic Include="reader.ui" />
     <QtMoc Include="reader.h" />
     <ClCompile Include="reader.cpp" />
