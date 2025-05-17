@@ -24,6 +24,12 @@ struct epubManifestItem
 	QString mediaType;
 	QString fallback;
 };
+//结构体用来存储 spine中的item信息
+struct SpineItem
+{
+	QString idref;
+	bool linear = true;
+};
 
 
 class readerform  : public QObject
@@ -47,6 +53,11 @@ public:
 	QVariantMap getMetaDate() const;
 	//获取错误信息
 	QString getLastError() const;
+	//获取spineItem
+	QList<SpineItem> getSpineItem() const;
+	//获取ncx在manife中的id
+	QString getNcxItemId() const;
+
 
 private:
 	QuaZip* zEpubFile;
@@ -55,9 +66,11 @@ private:
 	QString zOpfbasePath;//.opf文件所在目录的路径
 
 	QMap<QString, epubManifestItem> zManifestItem; // 键: item ID
-	QStringList zSpineItemIds;// 阅读顺序 (item ID 列表)
+	/*QStringList zSpineItemIds;*/
+	QList<SpineItem> zSpineItem;// 阅读顺序 (item ID 列表)
+	QString zNcxItemId;//存储spine中的ncx属性
+
 	QVariantMap zMetadata;// 存储解析到的元数据
-	//QString zNavDocument;//epub3导航文档的href
 
 	QString zLastError;
 
