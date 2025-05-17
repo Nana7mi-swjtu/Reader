@@ -70,6 +70,8 @@ private:
 	QList<SpineItem> zSpineItem;// 阅读顺序 (item ID 列表)
 	QString zNcxItemId;//存储spine中的ncx属性
 
+	QMap<QString, QString>zNcxHrefToTitle;//href到title的映射
+
 	QVariantMap zMetadata;// 存储解析到的元数据
 
 	QString zLastError;
@@ -81,9 +83,13 @@ private:
 	void parseOpfMetadata(QXmlStreamReader& xml);
 	void parseManifest(QXmlStreamReader& xml);
 	void parseSpine(QXmlStreamReader& xml);
+	//解析ncx文件
+	bool parseNcxFile(const QString& ncxFilePathInZip);
+	void parseNcxNavPoint(QXmlStreamReader& xml);
 
 	// 从 ZIP 中读取文件内容
 	QString readFileContentFromZip(const QString& filePathInZip);
 	QByteArray readBinaryFileContentFromZip(const QString& filePathInZip);
-
+	//规范href路径
+	QString normalHref(const QString& opfBase, const QString& relHref) const;
 };
