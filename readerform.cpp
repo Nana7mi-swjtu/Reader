@@ -20,11 +20,12 @@ void readerform::closeEpub()
 	}
 	//将与当前epub相关的全部请空
 	zManifestItem.clear();
-	zSpineItemIds.clear();
+	zSpineItem.clear();
 	zMetadata.clear();
 	zOpfbasePath.clear();
 	zOpfFilePath.clear();
 	zEpubFilePath.clear();
+	zNcxItemId.clear();
 }
 
 bool readerform::openEpub(const QString& filePath)
@@ -131,6 +132,16 @@ QVariantMap readerform::getMetaDate() const
 QString readerform::getLastError() const
 {
 	return zLastError;
+}
+
+QList<SpineItem> readerform::getSpineItem() const
+{
+	return zSpineItem;
+}
+
+QString readerform::getNcxItemId() const
+{
+	return zNcxItemId;
 }
 
 bool readerform::parseContainerXml()
@@ -533,5 +544,139 @@ void readerform::parseManifest(QXmlStreamReader& xml)
 
 void readerform::parseSpine(QXmlStreamReader& xml)
 {
+	if (!xml.isStartElement() || xml.name().toString() != "spine")
+	{
+		zLastError = tr("无spine标签");
+		qWarning() << zLastError;
+		return;
+	}
 
+	QXmlStreamAttributes spineAttributes = xml.attributes();//获取spine属性
+
+	if (spineAttributes.hasAttribute("toc"))//提取toc属性
+	{
+		zNcxItemId = spineAttributes.value("tox").toString();
+	}
+	else
+	{
+		zLastError = tr("无toc属性");
+		qWarning() << zLastError;
+		return;
+	}
+
+	zSpineItem.clear();
+	while (!(xml.isEndElement() && xml.name().toString() == "spine") && !xml.atEnd())
+	{
+		xml.readNext();
+		if (xml.isStartElement() && xml.name().toString() == "itemref")
+		{
+			SpineItem currentSpineItem;
+			QXmlStreamAttributes itemrefAttribute = xml.attributes();
+			//提取idref属性
+			if (itemrefAttribute.hasAttribute("idref"))
+			{
+				currentSpineItem.idref = itemrefAttribute.value("idref").toString();
+			}
+			else
+			{
+				zLastError = tr("无idref属性");
+				qWarning() << zLastError;
+				xml.skipCurrentElement();//跳过无效属性
+				continue;
+			}
+
+			if (itemrefAttribute.hasAttribute("linear"))
+			{
+				if (itemrefAttribute.value("linear").toString() == "no")
+				{
+					currentSpineItem.linear = false;
+				}
+				else
+				{
+					currentSpineItem.linear = true;
+				}
+			}
+			else
+			{
+				currentSpineItem.linear = true;
+			}
+			//加入spineItem列表
+			if (!currentSpineItem.idref.isEmpty())
+			{
+				zSpineItem.append(currentSpineItem);
+			}
+		}
+
+	}
+
+	if (xml.hasError())
+	{
+		zLastError = tr("xml error:%1").arg(xml.errorString());
+		qWarning() << zLastError;
+	}
 }
+
+QString readerform::readFileContentFromZip(const QString& filePathInZip)
+{
+	if (!zEpubFile || !zEpubFile->isOpen())
+	{
+		zLastError = tr("epub文件%1未打开").arg(filePathInZip);
+		qWarning() << zLastError;
+		return QString();
+	}
+
+	if (!zEpubFile->setCurrentFile(filePathInZip))
+	{
+		if (!zEpubFile->setCurrentFile(filePathInZip, QuaZip::csInsensitive))
+		{
+			zLastError = tr("无法指向%1文件，error：%2").arg(filePathInZip).arg(zEpubFile->getZipError());
+			qWarning() << zLastError;
+			return QString();
+		}
+	}
+
+	QuaZipFile fileEntry(zEpubFile);
+	if (!fileEntry.open(QIODevice::ReadOnly))
+	{
+		zLastError = tr("无法打开文件：%1，error：%2").arg(filePathInZip).arg(fileEntry.getZipError());
+		qWarning() << zLastError;
+		return QString();
+	}
+
+	QByteArray data = fileEntry.readAll();
+	fileEntry.close();
+	return QString::fromUtf8(data);
+}
+
+QByteArray readerform::readBinaryFileContentFromZip(const QString& filePathInZip)
+{
+	if (!zEpubFile || !zEpubFile->isOpen())
+	{
+		zLastError = tr("epub文件%1未打开").arg(filePathInZip);
+		qWarning() << zLastError;
+		return QByteArray();
+	}
+
+	if (!zEpubFile->setCurrentFile(filePathInZip))
+	{
+		if (!zEpubFile->setCurrentFile(filePathInZip, QuaZip::csInsensitive))
+		{
+			zLastError = tr("无法指向%1文件，error：%2").arg(filePathInZip).arg(zEpubFile->getZipError());
+			qWarning() << zLastError;
+			return QByteArray();
+		}
+	}
+
+	QuaZipFile fileEntry(zEpubFile);
+	if (!fileEntry.open(QIODevice::ReadOnly))
+	{
+		zLastError = tr("无法打开文件：%1，error：%2").arg(filePathInZip).arg(fileEntry.getZipError());
+		qWarning() << zLastError;
+		return QByteArray();
+	}
+
+	QByteArray data = fileEntry.readAll();
+	fileEntry.close();
+	return data;
+}
+
