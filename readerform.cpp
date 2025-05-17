@@ -53,11 +53,6 @@ bool readerform::openEpub(const QString& filePath)
 		return false;
 	}
 
-	/*for (const auto& item : qAsConst(zManifestItem))
-	{
-		if(item.)
-	}*/
-
 	zLastError.clear();//打开成功，清除错误信息
 	return true;
 }
@@ -140,16 +135,16 @@ QString readerform::getLastError() const
 
 bool readerform::parseContainerXml()
 {
-	if (!zEpubFile || !zEpubFile->isOpen())
+	if (!zEpubFile || !zEpubFile->isOpen())//未打开
 	{
 		zLastError = tr("文件未打开");
 		qWarning() << zLastError;
 		return false;
 	}
 
-	const QString containerPath = "META-INF/container.xml";
+	const QString containerPath = "META-INF/container.xml";//存储路径
 
-	if (!zEpubFile->setCurrentFile(containerPath))
+	if (!zEpubFile->setCurrentFile(containerPath))//设置失败
 	{
 		zLastError = tr("%1丢失").arg(containerPath);
 		qWarning() << zLastError;
@@ -167,7 +162,7 @@ bool readerform::parseContainerXml()
 	zOpfFilePath = findOpfFilePath(containerFileStream);//获取opf文件路径
 	containerFileStream.close();
 
-	if (zOpfFilePath.isEmpty())
+	if (zOpfFilePath.isEmpty())//路径为空
 	{
 		if (zLastError.isEmpty())
 		{
@@ -194,6 +189,349 @@ bool readerform::parseContainerXml()
 }
 
 QString readerform::findOpfFilePath(QuaZipFile& containerFileStream)
+{
+	QXmlStreamReader xml(&containerFileStream);//解析epubxml
+	while (!xml.atEnd() && !xml.hasError())
+	{
+		xml.readNext();
+		if (!xml.isStartElement() && xml.name().toString() == "rootfile")
+		{
+			QXmlStreamAttributes attributes = xml.attributes();//提取属性
+			if (attributes.hasAttribute("full-path"))
+			{
+				return attributes.value("full-path").toString();
+			}
+		}
+	}
+
+	if (xml.hasError())//出现错误发送错误信息
+	{
+		zLastError = tr("xml解析失败：error%1 in line%2 column&3").arg(xml.errorString()).arg(xml.lineNumber()).arg(xml.columnNumber());
+		qWarning() << zLastError;
+	}
+
+	return QString();//返回空路径
+}
+
+bool readerform::parseOpfFile()
+{
+	if (!zEpubFile || zEpubFile->isOpen() || zOpfFilePath.isEmpty())
+	{
+		zLastError = tr("opf路径为空或epub文件未打开");
+		qWarning() << zLastError;
+		return false;
+	}
+
+	if (!zEpubFile->setCurrentFile(zOpfFilePath))//设置路径
+	{
+		zLastError = tr("找不到opf文件：%1，error：%2").arg(zOpfFilePath).arg(zEpubFile->getZipError());
+		qWarning() << zLastError;
+		return false;
+	}
+
+	QuaZipFile opfContentFile(zEpubFile);//打开epub文件
+	if (!opfContentFile.open(QIODevice::ReadOnly))
+	{
+		zLastError = tr("打开opf文件失败：%1，error：%2").arg(zOpfFilePath).arg(opfContentFile.getZipError());
+		qWarning() << zLastError;
+		return false;
+	}
+
+	QXmlStreamReader xml(&opfContentFile);//解析xml格式
+	while (!xml.atEnd() && !xml.hasError())
+	{
+		xml.readNext();
+		if (xml.isStartElement())
+		{
+			if (xml.name().toString() == "metadata")
+			{
+				parseOpfMetadata(xml);
+			}
+			if (xml.name().toString() == "manifest")
+			{
+				parseManifest(xml);
+			}
+			if (xml.name().toString() == "spine")
+			{
+				parseSpine(xml);
+			}
+		}
+	}
+
+	opfContentFile.close();
+
+	if (xml.hasError())
+	{
+		zLastError = tr("xml解析在%1失败：%2").arg(zOpfFilePath).arg(xml.errorString());
+		qWarning() << zLastError;
+		return false;
+	}
+
+}
+
+void readerform::parseOpfMetadata(QXmlStreamReader& xml)
+{
+	if (!xml.isStartElement() || xml.name().toString() == "metadata")//防止错误进入
+		return;
+
+	const QString dcNamespaceUri = "http://purl.org/dc/elements/1.1/";
+
+	// 用于收集可重复的元数据项
+	QList<QVariantMap> creatorsList;
+	QList<QVariantMap> contributorsList;
+	QList<QVariantMap> identifiersList;
+	QList<QVariantMap> datesList;
+	QStringList subjectsList;
+	QStringList languagesList;
+	QStringList typesList;       
+	QStringList formatsList;     
+	QStringList sourcesList;    
+	QStringList relationsList;   
+	QStringList coveragesList;  
+
+	// 临时存储父dc元素的ID，以备子<meta>元素通过opf:refines引用
+	// QString currentDCOpjectId; // 如果要支持opf:refines，但这里简化，暂不处理
+
+	while (!(xml.isEndElement() && xml.name().toString() == "metadata") && !xml.atEnd()) 
+	{
+		xml.readNext();
+
+		if (xml.isStartElement()) 
+		{
+			QString tagName = xml.name().toString(); // 本地名
+			QString nsUri = xml.namespaceUri().toString(); // 命名空间 URI
+			QXmlStreamAttributes attributes = xml.attributes();
+
+			// 处理 <meta> 标签 
+			if (tagName == "meta") 
+			{
+				if (attributes.hasAttribute("name") && attributes.value("name") == "cover" && attributes.hasAttribute("content")) 
+				{
+					// EPUB 2 Cover ID (来自 <meta name="cover" content="cover-image-id"/>)
+					zMetadata["cover_ref_id"] = attributes.value("content").toString();
+				}
+				
+				if (xml.isStartElement()) // 确保仍然是开始标签，以防万一
+				{ 
+					xml.skipCurrentElement(); // 跳过meta标签的任何潜在内容和结束标签
+				}
+				continue; // 处理完meta标签，进入下一次循环
+			}
+			// 处理dc元素 
+			else if (nsUri == dcNamespaceUri) 
+			{
+				QString elementId = attributes.value("id").toString(); // 获取DC元素的id属性
+				// 使用 readElementText 获取元素的所有文本内容，并跳过任何子元素
+				QString textContent = xml.readElementText(QXmlStreamReader::SkipChildElements).trimmed();
+
+				if (tagName == "title") 
+				{
+					QVariantMap titleMap;
+					titleMap["value"] = textContent;
+					if (!elementId.isEmpty()) 
+						titleMap["id"] = elementId;
+					// EPUB 2 title 通常不复杂，但可以有id。主要标题通常只有一个。
+					// 如果有多个<dc:title>，这里会取最后一个。可改为列表或按类型区分。
+					zMetadata["title"] = textContent; // 简化：只存文本
+					if (!elementId.isEmpty()) 
+						zMetadata["title_id"] = elementId; // 存ID
+				}
+				else if (tagName == "creator") 
+				{
+					QVariantMap entryMap;
+					entryMap["name"] = textContent;
+					if (!elementId.isEmpty()) 
+						entryMap["id"] = elementId;
+					if (attributes.hasAttribute("role")) 
+						entryMap["role"] = attributes.value("role").toString(); // opf:role
+					if (attributes.hasAttribute("file-as")) 
+						entryMap["file-as"] = attributes.value("file-as").toString(); // opf:file-as
+					creatorsList.append(entryMap);
+				}
+				else if (tagName == "contributor") 
+				{
+					QVariantMap entryMap;
+					entryMap["name"] = textContent;
+					if (!elementId.isEmpty()) 
+						entryMap["id"] = elementId;
+					if (attributes.hasAttribute("role")) 
+						entryMap["role"] = attributes.value("role").toString();
+					if (attributes.hasAttribute("file-as")) 
+						entryMap["file-as"] = attributes.value("file-as").toString();
+					contributorsList.append(entryMap);
+				}
+				else if (tagName == "identifier") 
+				{
+					QVariantMap entryMap;
+					entryMap["value"] = textContent;
+					if (!elementId.isEmpty()) 
+						entryMap["id"] = elementId;
+					// opf:scheme 在 EPUB 2 中是可选的，但常见
+					if (attributes.hasAttribute("scheme")) 
+						entryMap["scheme"] = attributes.value("scheme").toString(); // opf:scheme
+					identifiersList.append(entryMap);
+				}
+				else if (tagName == "language") 
+				{
+					languagesList.append(textContent);
+				}
+				else if (tagName == "subject") 
+				{
+					subjectsList.append(textContent);
+				}
+				else if (tagName == "description") 
+				{
+					// 通常一个主要描述
+					zMetadata["description"] = textContent;
+					if (!elementId.isEmpty()) 
+						zMetadata["description_id"] = elementId;
+				}
+				else if (tagName == "publisher") 
+				{
+					zMetadata["publisher"] = textContent;
+					if (!elementId.isEmpty()) zMetadata["publisher_id"] = elementId;
+				}
+				else if (tagName == "date") 
+				{
+					QVariantMap entryMap;
+					entryMap["value"] = textContent;
+					if (!elementId.isEmpty()) 
+						entryMap["id"] = elementId;
+					if (attributes.hasAttribute("event")) 
+						entryMap["event"] = attributes.value("event").toString(); // opf:event
+					datesList.append(entryMap);
+				}
+				else if (tagName == "rights") 
+				{
+					zMetadata["rights"] = textContent;
+					if (!elementId.isEmpty()) 
+						zMetadata["rights_id"] = elementId;
+				}
+				else if (tagName == "source") 
+				{
+					sourcesList.append(textContent);
+				}
+				else if (tagName == "relation") 
+				{
+					relationsList.append(textContent);
+				}
+				else if (tagName == "coverage") 
+				{
+					coveragesList.append(textContent);
+				}
+				else if (tagName == "type") 
+				{
+					typesList.append(textContent);
+				}
+				else if (tagName == "format") 
+				{
+					formatsList.append(textContent);
+				}
+				// xml.readElementText() 已经消耗了元素的结束标签
+				// 所以循环的下一次迭代将从该元素的下一个兄弟元素开始。
+			}
+		}
+	} // 结束 while 循环 (metadata 块解析完毕)
+
+	// 将收集到的列表存储到 zMetadata 中
+	if (!creatorsList.isEmpty()) 
+		zMetadata["authors"] = QVariant::fromValue(creatorsList);
+	if (!contributorsList.isEmpty()) 
+		zMetadata["contributors"] = QVariant::fromValue(contributorsList);
+	if (!identifiersList.isEmpty()) 
+		zMetadata["identifiers"] = QVariant::fromValue(identifiersList);
+	if (!datesList.isEmpty()) 
+		zMetadata["dates"] = QVariant::fromValue(datesList);
+	if (!subjectsList.isEmpty()) 
+		zMetadata["subjects"] = QVariant::fromValue(subjectsList);
+
+	// 对于单个或多个语言、类型等，进行相应存储
+	if (!languagesList.isEmpty()) 
+	{
+		zMetadata["language"] = (languagesList.size() == 1) ? QVariant(languagesList.first()) : QVariant::fromValue(languagesList);
+	}
+	if (!typesList.isEmpty()) 
+		zMetadata["type"] = (typesList.size() == 1) ? QVariant(typesList.first()) : QVariant::fromValue(typesList);
+	if (!formatsList.isEmpty()) 
+		zMetadata["format"] = (formatsList.size() == 1) ? QVariant(formatsList.first()) : QVariant::fromValue(formatsList);
+	if (!sourcesList.isEmpty()) 
+		zMetadata["source"] = (sourcesList.size() == 1) ? QVariant(sourcesList.first()) : QVariant::fromValue(sourcesList);
+	if (!relationsList.isEmpty()) 
+		zMetadata["relation"] = (relationsList.size() == 1) ? QVariant(relationsList.first()) : QVariant::fromValue(relationsList);
+	if (!coveragesList.isEmpty()) 
+		zMetadata["coverage"] = (coveragesList.size() == 1) ? QVariant(coveragesList.first()) : QVariant::fromValue(coveragesList);
+
+}
+
+void readerform::parseManifest(QXmlStreamReader& xml)
+{
+	if (!xml.isStartElement() || xml.name().toString() == "manifest")//防止无manifest标签
+	{
+		zLastError = tr("无manifest标签");
+		qWarning() << zLastError;
+		return;
+	}
+
+	while (!(xml.isEndElement() && xml.name().toString() == "manifest") && !xml.atEnd())
+	{
+		xml.readNext();
+		if (xml.isStartElement() && xml.name().toString() == "item")
+		{
+			QXmlStreamAttributes attributs = xml.attributes();//获取属性
+			epubManifestItem currentItem;
+
+			if (attributs.hasAttribute("id"))
+			{
+				currentItem.id = attributs.value("id").toString();
+			}
+			else
+			{
+				qWarning() << "id丢失";
+				xml.skipCurrentElement();//无id跳过元素
+				continue;
+			}
+
+			if (attributs.hasAttribute("href"))
+			{
+				currentItem.href = attributs.value("href").toString();
+			}
+			else
+			{
+				qWarning() << "href丢失";
+				xml.skipCurrentElement();//无href跳过元素
+				continue;
+			}
+
+			if (attributs.hasAttribute("media-type"))
+			{
+				currentItem.mediaType = attributs.value("media-type").toString();
+			}
+			else
+			{
+				qWarning() << "media-type丢失";
+				xml.skipCurrentElement();//无media-type跳过元素
+				continue;
+			}
+
+			if (attributs.hasAttribute("fallback"))
+			{
+				currentItem.fallback = attributs.value("fallback").toString();
+			}
+
+			if (!currentItem.id.isEmpty() && !currentItem.href.isEmpty() && !currentItem.mediaType.isEmpty())//都不缺失则插入到目录
+			{
+				zManifestItem.insert(currentItem.id, currentItem);
+			}
+
+		}
+	}
+	if (xml.hasError())
+	{
+		zLastError = tr("xml error:%1").arg(xml.errorString());
+	}
+}
+
+void readerform::parseSpine(QXmlStreamReader& xml)
 {
 
 }
