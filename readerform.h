@@ -22,6 +22,7 @@ struct epubManifestItem
 	QString id;
 	QString href;
 	QString mediaType;
+	QString fallback;
 };
 
 
