@@ -10,6 +10,11 @@ readerform::~readerform()
 }
 
 
+QString readerform::normalHref(const QString& opfBase, const QString& relHref) const
+{
+
+}
+
 void readerform::closeEpub()
 {
 	if (zEpubFile)//如果打开则关闭
@@ -26,6 +31,7 @@ void readerform::closeEpub()
 	zOpfFilePath.clear();
 	zEpubFilePath.clear();
 	zNcxItemId.clear();
+	zNcxHrefToTitle.clear();
 }
 
 bool readerform::openEpub(const QString& filePath)
@@ -54,21 +60,51 @@ bool readerform::openEpub(const QString& filePath)
 		return false;
 	}
 
+
+
 	zLastError.clear();//打开成功，清除错误信息
 	return true;
 }
 
-QMap<QString, QString> readerform::getTableofContent() const//获取目录
+QMap<QString, QString> readerform::getTableofContent() const
 {
-	QMap<QString, QString> toc;
-	for (const QString& itemId : qAsConst(zSpineItemIds))//从itemid列表中读取
+	QMap<QString, QString> tocDisplayMap;
+	for (const SpineItem& spineItem : qAsConst(zSpineItem))
 	{
-		if (zManifestItem.contains(itemId))//查找是否存在itemid
+		if (!spineItem.linear)
 		{
-			toc.insert(itemId, zManifestItem.value(itemId).href);
+			continue;
+		}
+
+		if (zManifestItem.contains(spineItem.idref))
+		{
+			const epubManifestItem& manifestItem = zManifestItem.value(spineItem.idref);
+			QString manifestHref = manifestItem.href;
+			QString normalManifestHref = normalHref(zOpfbasePath, manifestHref);
+
+			QString displayString;
+			if (zNcxHrefToTitle.contains(normalManifestHref))
+			{
+				displayString = zNcxHrefToTitle.value(normalManifestHref);
+			}
+			else//如果没有此条目，则使用文件名
+			{
+				QFileInfo fileInfo(manifestHref);
+				displayString = fileInfo.fileName();
+				if (displayString.isEmpty())//没有文件名，则使用id
+				{
+					displayString = manifestItem.id;
+				}
+			}
+			tocDisplayMap.insert(spineItem.idref, displayString);
+		}
+		else
+		{
+			qWarning() << "Spine item idref " << spineItem.idref << " not found in manifest.";
+			tocDisplayMap.insert(spineItem.idref, spineItem.idref + " not found.");
 		}
 	}
-	return toc;
+	return tocDisplayMap;
 }
 
 QString readerform::getContentById(const QString& itemId)
