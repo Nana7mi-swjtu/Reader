@@ -5,7 +5,6 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
-#include "reader.h"
 #include "QuaZip-Qt6-1.5/quazip/quazip.h"
 #include "QuaZip-Qt6-1.5/quazip/quazipfile.h"
 #include <QXmlStreamReader>
