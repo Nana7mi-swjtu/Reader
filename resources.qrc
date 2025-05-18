@@ -16,5 +16,6 @@
         <file>icons/search.svg</file>
         <file>icons/settings.svg</file>
         <file>icons/time.svg</file>
+        <file>app_style.qss</file>
     </qresource>
 </RCC>
