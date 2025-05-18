@@ -107,6 +107,7 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+
     
     readerform* zEpubParser;//指向epub解析的指针
 
@@ -187,5 +188,14 @@ private:
     void setupReaderNavigation();
     void updateFontSize(int change);
     int m_currentFontSize;
+    void gotoPreviousPage();
+    void gotoNextPage();
+
+
+    // QObject interface
+public:
+    virtual bool eventFilter(QObject *watched, QEvent *event) override;
 };
+
+
 #endif // READER_H

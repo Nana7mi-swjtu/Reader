@@ -72,8 +72,47 @@ MainWindow::MainWindow(QWidget *parent)
             themeButton->setIcon(QIcon(":/icons/light.svg"));
         }
     }
-}
+    ui->readerTextBrowser->installEventFilter(this);
+    QShortcut *zoomInShortcut = new QShortcut(QKeySequence("Ctrl++"), this);
+    QShortcut *zoomOutShortcut = new QShortcut(QKeySequence("Ctrl+-"), this);
+    connect(zoomInShortcut, &QShortcut::activated, this, &MainWindow::on_fontSizeIncreaseButton_clicked);
+    connect(zoomOutShortcut, &QShortcut::activated, this, &MainWindow::on_fontSizeDecreaseButton_clicked);
 
+    // 添加书签快捷键
+    QShortcut *bookmarkShortcut = new QShortcut(QKeySequence("Ctrl+M"), this);
+    connect(bookmarkShortcut, &QShortcut::activated, this, &MainWindow::on_bookmarkButton_clicked);
+
+
+}
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (ui->contentStackedWidget->currentWidget() == ui->readerPage &&
+        watched == ui->readerTextBrowser)
+    {
+        if (event->type() == QEvent::KeyPress) {
+            QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+            if (keyEvent->key() == Qt::Key_Left) {
+                gotoPreviousPage();
+                return true;
+            } else if (keyEvent->key() == Qt::Key_Right) {
+                gotoNextPage();
+                return true;
+            }
+        }
+        else if (event->type() == QEvent::MouseButtonPress) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                gotoPreviousPage();
+                return true;
+            } else if (mouseEvent->button() == Qt::RightButton) {
+                gotoNextPage();
+                return true;
+            }
+        }
+    }
+
+    return QMainWindow::eventFilter(watched, event);
+}
 MainWindow::~MainWindow()
 {
     delete ui;
@@ -127,6 +166,7 @@ void MainWindow::setupUI()
     themeButton->setToolTip(tr("切换主题"));
     ui->horizontalLayout->addWidget(themeButton);
     connect(themeButton, &QPushButton::clicked, this, &MainWindow::on_themeButton_clicked);
+
 }
 
 void MainWindow::initWindowList()
@@ -543,7 +583,7 @@ void MainWindow::on_closeBookButton_clicked()
 
 void MainWindow::on_bookmarkButton_clicked()
 {
-    ///
+    //添加书签
 }
 
 void MainWindow::on_addToButton_clicked()
@@ -1335,6 +1375,16 @@ void MainWindow::updateFontSize(int change)
     
     // 显示当前字体大小的提示
     ui->statusbar->showMessage(tr("字体大小: %1pt").arg(m_currentFontSize), 2000);
+}
+
+void MainWindow::gotoPreviousPage()
+{
+    //上一页
+}
+
+void MainWindow::gotoNextPage()
+{
+    //下一页
 }
 
 void MainWindow::on_fontSizeDecreaseButton_clicked()
