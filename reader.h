@@ -11,6 +11,7 @@
 #include <QIcon>
 #include <QMenu>
 #include <QInputDialog>
+#include "readerform.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -107,6 +108,8 @@ private slots:
 private:
     Ui::MainWindow *ui;
     
+    readerform* zEpubParser;//指向epub解析的指针
+
     // 存储所有电子书信息
     QMap<QString, BookInfo> m_books;
     
