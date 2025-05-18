@@ -21,6 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_sortMethod(0) // 默认按名称排序
     , m_currentTheme(0) // 默认浅色主题
     , m_currentFontSize(13) // 默认字体大小
+    , zEpubParser(new readerform(this))//初始化epub解析器
 {
     ui->setupUi(this);
     setupUI();
@@ -870,6 +871,25 @@ void MainWindow::openBook(const QString &filePath)
     
     BookInfo &book = m_books[filePath];
     
+    /*-----------------------------------------------------*/
+    if (!zEpubParser->openEpub(filePath))
+    {
+        QMessageBox::critical(this, tr("failure occur when open epub file"), tr("could open epub file%1,error:%2").arg(filePath).arg(zEpubParser->getLastError()));
+        return;
+    }
+
+
+    //打开成功
+    QVariantMap metadata = zEpubParser->getMetaDate();//获取元数据
+    QString epubTitle = metadata.value("title", QFileInfo(filePath).baseName()).toString();//获取标题
+
+    if (m_books.contains(filePath))//更新标题
+    {
+        m_books[filePath].title = epubTitle;
+    }
+
+    /*-----------------------------------------------------*/
+
     // 检查是否已经打开了这本书
     for (int i = 0; i < m_windows.size(); ++i) {
         if (m_windows[i].type == BOOK_READER && m_windows[i].identifier == filePath) {
