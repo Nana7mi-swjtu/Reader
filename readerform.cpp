@@ -12,7 +12,31 @@ readerform::~readerform()
 
 QString readerform::normalHref(const QString& opfBase, const QString& relHref) const
 {
+	QString pathOnly = relHref;
+	int anchorPos = pathOnly.indexOf('#');
+	if (anchorPos != -1)//去除锚点
+	{
+		pathOnly = pathOnly.left('#');
+	}
 
+	QUrl baseUrl;
+	if (opfBase.isEmpty() || opfBase == ".")
+	{
+		baseUrl = QUrl("file:///");
+	}
+	else
+	{
+		baseUrl = QUrl("file:///" + (opfBase.endsWith('/') ? opfBase : opfBase + "/"));
+	}
+
+	QUrl resolvedUrl = baseUrl.resolved(QUrl::fromUserInput(pathOnly));
+	QString filePath = resolvedUrl.path();
+	if (filePath.endsWith('/'))
+	{
+		filePath = filePath.mid(1);
+	}
+
+	return filePath;
 }
 
 void readerform::closeEpub()
@@ -30,6 +54,7 @@ void readerform::closeEpub()
 	zOpfbasePath.clear();
 	zOpfFilePath.clear();
 	zEpubFilePath.clear();
+	zLastError.clear();
 	zNcxItemId.clear();
 	zNcxHrefToTitle.clear();
 }
@@ -43,7 +68,7 @@ bool readerform::openEpub(const QString& filePath)
 
 	if (!zEpubFile->open(QuaZip::mdUnzip))
 	{
-		zLastError = tr("打开%1失败,error:%2").arg(filePath).arg(zEpubFile->getZipError());// 打开失败保存错误信息
+		zLastError = tr("Failed to open Epub File %1, error: % 2").arg(filePath).arg(zEpubFile->getZipError());// 打开失败保存错误信息
 		qWarning() << zLastError;
 		delete zEpubFile;
 		zEpubFile = nullptr;
@@ -61,6 +86,31 @@ bool readerform::openEpub(const QString& filePath)
 	}
 
 
+	//解析ncx
+	if (!zNcxItemId.isEmpty())
+	{
+		if (zManifestItem.contains(zNcxItemId))
+		{
+			const epubManifestItem& ncxItem = zManifestItem.value(zNcxItemId);
+			QString  ncxFilePathInZip = normalHref(zOpfbasePath, ncxItem.href);
+
+			qDebug() << "NCX file found in manifest via spine toc id" << zNcxItemId << ":" << ncxItem.href << "-> Full path in zip :" << ncxFilePathInZip;
+
+			if (!parseNcxFile(ncxFilePathInZip))
+			{
+				qWarning() << "Failed to parse ncx File , table of content will use fallback" << getLastError();
+				zLastError.clear();
+			}
+		}
+		else
+		{
+			qWarning() << "NCX item ID" << zNcxItemId << "not found in manifest";
+		}
+	}
+	else
+	{
+		qWarning() << "no NCX item ID";
+	}
 
 	zLastError.clear();//打开成功，清除错误信息
 	return true;
@@ -69,7 +119,7 @@ bool readerform::openEpub(const QString& filePath)
 QMap<QString, QString> readerform::getTableofContent() const
 {
 	QMap<QString, QString> tocDisplayMap;
-	for (const SpineItem& spineItem : qAsConst(zSpineItem))
+	for (const SpineItem& spineItem : std::as_const(zSpineItem))
 	{
 		if (!spineItem.linear)
 		{
@@ -111,7 +161,7 @@ QString readerform::getContentById(const QString& itemId)
 {
 	if (!zManifestItem.contains(itemId))
 	{
-		zLastError = tr("在manifest中找不到%1").arg(itemId);
+		zLastError = tr("COntent item with id(%1) not found in manifest").arg(itemId);
 		qWarning() << zLastError;
 		return QString();
 	}
@@ -184,7 +234,7 @@ bool readerform::parseContainerXml()
 {
 	if (!zEpubFile || !zEpubFile->isOpen())//未打开
 	{
-		zLastError = tr("文件未打开");
+		zLastError = tr("Epub file not open");
 		qWarning() << zLastError;
 		return false;
 	}
@@ -193,7 +243,7 @@ bool readerform::parseContainerXml()
 
 	if (!zEpubFile->setCurrentFile(containerPath))//设置失败
 	{
-		zLastError = tr("%1丢失").arg(containerPath);
+		zLastError = tr("Epub missing '%1'").arg(containerPath);
 		qWarning() << zLastError;
 		return false;
 	}
@@ -201,7 +251,7 @@ bool readerform::parseContainerXml()
 	QuaZipFile containerFileStream(zEpubFile);
 	if (!containerFileStream.open(QIODevice::ReadOnly))
 	{
-		zLastError = tr("无法打开%1，error:%2").arg(containerPath).arg(containerFileStream.getZipError());
+		zLastError = tr("not open %1，error:%2").arg(containerPath).arg(containerFileStream.getZipError());
 		qWarning() << zLastError;
 		return false;
 	}
@@ -213,7 +263,7 @@ bool readerform::parseContainerXml()
 	{
 		if (zLastError.isEmpty())
 		{
-			zLastError = tr("无法找到opf路径");
+			zLastError = tr("not find opf file path");
 		}
 		qWarning() << zLastError;
 		return false;
@@ -230,8 +280,8 @@ bool readerform::parseContainerXml()
 		zOpfbasePath += "/";
 	}
 
-	qDebug() << "opf文件路径为" << zOpfFilePath;
-	qDebug() << "opf文件基路径为" << zOpfbasePath;
+	qDebug() << "opf file path in zip " << zOpfFilePath;
+	qDebug() << "opf file base path in zip " << zOpfbasePath;
 	return true;
 }
 
@@ -253,7 +303,7 @@ QString readerform::findOpfFilePath(QuaZipFile& containerFileStream)
 
 	if (xml.hasError())//出现错误发送错误信息
 	{
-		zLastError = tr("xml解析失败：error%1 in line%2 column&3").arg(xml.errorString()).arg(xml.lineNumber()).arg(xml.columnNumber());
+		zLastError = tr("xml parsing error：%1").arg(xml.errorString());
 		qWarning() << zLastError;
 	}
 
@@ -264,14 +314,14 @@ bool readerform::parseOpfFile()
 {
 	if (!zEpubFile || zEpubFile->isOpen() || zOpfFilePath.isEmpty())
 	{
-		zLastError = tr("opf路径为空或epub文件未打开");
+		zLastError = tr("opf file path is empty or epub is not open");
 		qWarning() << zLastError;
 		return false;
 	}
 
 	if (!zEpubFile->setCurrentFile(zOpfFilePath))//设置路径
 	{
-		zLastError = tr("找不到opf文件：%1，error：%2").arg(zOpfFilePath).arg(zEpubFile->getZipError());
+		zLastError = tr("not find opf file：%1，error：%2").arg(zOpfFilePath).arg(zEpubFile->getZipError());
 		qWarning() << zLastError;
 		return false;
 	}
@@ -279,7 +329,7 @@ bool readerform::parseOpfFile()
 	QuaZipFile opfContentFile(zEpubFile);//打开epub文件
 	if (!opfContentFile.open(QIODevice::ReadOnly))
 	{
-		zLastError = tr("打开opf文件失败：%1，error：%2").arg(zOpfFilePath).arg(opfContentFile.getZipError());
+		zLastError = tr("open opf file failed：%1，error：%2").arg(zOpfFilePath).arg(opfContentFile.getZipError());
 		qWarning() << zLastError;
 		return false;
 	}
@@ -309,7 +359,7 @@ bool readerform::parseOpfFile()
 
 	if (xml.hasError())
 	{
-		zLastError = tr("xml解析在%1失败：%2").arg(zOpfFilePath).arg(xml.errorString());
+		zLastError = tr("xml parsing failed in %1：%2").arg(zOpfFilePath).arg(xml.errorString());
 		qWarning() << zLastError;
 		return false;
 	}
@@ -514,7 +564,7 @@ void readerform::parseManifest(QXmlStreamReader& xml)
 {
 	if (!xml.isStartElement() || xml.name().toString() == "manifest")//防止无manifest标签
 	{
-		zLastError = tr("无manifest标签");
+		zLastError = tr("no manifest tag");
 		qWarning() << zLastError;
 		return;
 	}
@@ -533,7 +583,7 @@ void readerform::parseManifest(QXmlStreamReader& xml)
 			}
 			else
 			{
-				qWarning() << "id丢失";
+				qWarning() << " missing id";
 				xml.skipCurrentElement();//无id跳过元素
 				continue;
 			}
@@ -544,7 +594,7 @@ void readerform::parseManifest(QXmlStreamReader& xml)
 			}
 			else
 			{
-				qWarning() << "href丢失";
+				qWarning() << "missing href";
 				xml.skipCurrentElement();//无href跳过元素
 				continue;
 			}
@@ -555,7 +605,7 @@ void readerform::parseManifest(QXmlStreamReader& xml)
 			}
 			else
 			{
-				qWarning() << "media-type丢失";
+				qWarning() << "missing media-type";
 				xml.skipCurrentElement();//无media-type跳过元素
 				continue;
 			}
@@ -582,7 +632,7 @@ void readerform::parseSpine(QXmlStreamReader& xml)
 {
 	if (!xml.isStartElement() || xml.name().toString() != "spine")
 	{
-		zLastError = tr("无spine标签");
+		zLastError = tr("no spine tag");
 		qWarning() << zLastError;
 		return;
 	}
@@ -595,7 +645,7 @@ void readerform::parseSpine(QXmlStreamReader& xml)
 	}
 	else
 	{
-		zLastError = tr("无toc属性");
+		zLastError = tr("no toc attribute");
 		qWarning() << zLastError;
 		return;
 	}
@@ -615,7 +665,7 @@ void readerform::parseSpine(QXmlStreamReader& xml)
 			}
 			else
 			{
-				zLastError = tr("无idref属性");
+				zLastError = tr("no idref attribute");
 				qWarning() << zLastError;
 				xml.skipCurrentElement();//跳过无效属性
 				continue;
@@ -656,7 +706,7 @@ QString readerform::readFileContentFromZip(const QString& filePathInZip)
 {
 	if (!zEpubFile || !zEpubFile->isOpen())
 	{
-		zLastError = tr("epub文件%1未打开").arg(filePathInZip);
+		zLastError = tr("epub file is not open when read %1").arg(filePathInZip);
 		qWarning() << zLastError;
 		return QString();
 	}
@@ -665,7 +715,7 @@ QString readerform::readFileContentFromZip(const QString& filePathInZip)
 	{
 		if (!zEpubFile->setCurrentFile(filePathInZip, QuaZip::csInsensitive))
 		{
-			zLastError = tr("无法指向%1文件，error：%2").arg(filePathInZip).arg(zEpubFile->getZipError());
+			zLastError = tr("could not set current file %1，error：%2").arg(filePathInZip).arg(zEpubFile->getZipError());
 			qWarning() << zLastError;
 			return QString();
 		}
@@ -674,7 +724,7 @@ QString readerform::readFileContentFromZip(const QString& filePathInZip)
 	QuaZipFile fileEntry(zEpubFile);
 	if (!fileEntry.open(QIODevice::ReadOnly))
 	{
-		zLastError = tr("无法打开文件：%1，error：%2").arg(filePathInZip).arg(fileEntry.getZipError());
+		zLastError = tr("could not open file：%1，error：%2").arg(filePathInZip).arg(fileEntry.getZipError());
 		qWarning() << zLastError;
 		return QString();
 	}
@@ -688,7 +738,7 @@ QByteArray readerform::readBinaryFileContentFromZip(const QString& filePathInZip
 {
 	if (!zEpubFile || !zEpubFile->isOpen())
 	{
-		zLastError = tr("epub文件%1未打开").arg(filePathInZip);
+		zLastError = tr("epub file is not open when read %1").arg(filePathInZip);
 		qWarning() << zLastError;
 		return QByteArray();
 	}
@@ -697,7 +747,7 @@ QByteArray readerform::readBinaryFileContentFromZip(const QString& filePathInZip
 	{
 		if (!zEpubFile->setCurrentFile(filePathInZip, QuaZip::csInsensitive))
 		{
-			zLastError = tr("无法指向%1文件，error：%2").arg(filePathInZip).arg(zEpubFile->getZipError());
+			zLastError = tr("could not set current file %1，error：%2").arg(filePathInZip).arg(zEpubFile->getZipError());
 			qWarning() << zLastError;
 			return QByteArray();
 		}
@@ -706,7 +756,7 @@ QByteArray readerform::readBinaryFileContentFromZip(const QString& filePathInZip
 	QuaZipFile fileEntry(zEpubFile);
 	if (!fileEntry.open(QIODevice::ReadOnly))
 	{
-		zLastError = tr("无法打开文件：%1，error：%2").arg(filePathInZip).arg(fileEntry.getZipError());
+		zLastError = tr("could not open file：%1，error：%2").arg(filePathInZip).arg(fileEntry.getZipError());
 		qWarning() << zLastError;
 		return QByteArray();
 	}
@@ -716,3 +766,103 @@ QByteArray readerform::readBinaryFileContentFromZip(const QString& filePathInZip
 	return data;
 }
 
+bool readerform::parseNcxFile(const QString& ncxFilePathInZip)
+{
+	zNcxHrefToTitle.clear();
+	QString ncxContnet = readFileContentFromZip(ncxFilePathInZip);
+
+	if (ncxContnet.isEmpty())
+	{
+		zLastError = tr("NCX file content is empty:%1").arg(ncxFilePathInZip);
+		return false;
+	}
+
+	QXmlStreamReader xml(ncxContnet);
+
+	while (!xml.atEnd() && !xml.hasError())
+	{
+		xml.readNext();
+
+		if (xml.isStartElement())
+		{
+			if (xml.name().toString() == "nacMap")
+			{
+				while (!(xml.isEndElement() && xml.name().toString() == "navMap") && !xml.atEnd())//调用辅助解析函数
+				{
+					xml.readNext();
+					if (xml.isStartElement() && xml.name().toString() == "navPoint")
+					{
+						parseNcxNavPoint(xml);
+					}
+				}
+			}
+		}
+	}
+
+	if (xml.hasError())
+	{
+		zLastError = tr("xml error in Ncx file(%1):%2").arg(ncxFilePathInZip).arg(xml.errorString());
+		return false;
+	}
+
+	return true;
+}
+
+void readerform::parseNcxNavPoint(QXmlStreamReader& xml)
+{
+	if (!xml.isStartElement() || xml.name().toString() == "navPoint")
+	{
+		return;
+	}
+
+	QString currentTitle;
+	QString	currentCotentSrc;
+
+	while (!(xml.isEndElement() && xml.name().toString() == "navPoint") && !xml.atEnd())
+	{
+		xml.readNext();
+		if (xml.isStartElement())
+		{
+			QString tagName = xml.name().toString();
+
+			if (tagName == "navLabel")
+			{
+				while (!(xml.isEndElement() && xml.name().toString() == "navLabel"))
+				{
+					xml.readNext();
+
+					if (xml.isStartElement() && xml.name().toString() == "text")
+					{
+						currentTitle = xml.readElementText().trimmed();
+						break;
+					}
+				}
+			}
+
+			else if (tagName == "content")
+			{
+				currentCotentSrc = xml.attributes().value("scr").toString();
+
+				if (xml.isStartElement())
+				{
+					xml.skipCurrentElement();
+				}
+			}
+
+			else if (tagName == "navPoint")
+			{
+				parseNcxNavPoint(xml);
+			}
+		}
+	}
+
+	if (!currentTitle.isEmpty() && !currentCotentSrc.isEmpty())
+	{
+		QString normalScr = normalHref(zOpfbasePath, currentCotentSrc);
+
+		if (!normalScr.isEmpty())
+		{
+			zNcxHrefToTitle[normalScr] = currentTitle;
+		}
+	}
+}
