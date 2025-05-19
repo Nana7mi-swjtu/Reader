@@ -973,6 +973,7 @@ void MainWindow::openBook(const QString &filePath)
             if (spineitem.linear)
             {
                 firstId = spineitem.idref;
+                break;
             }
         }
     }
