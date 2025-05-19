@@ -161,7 +161,7 @@ QString readerform::getContentById(const QString& itemId)
 {
 	if (!zManifestItem.contains(itemId))
 	{
-		zLastError = tr("COntent item with id(%1) not found in manifest").arg(itemId);
+		zLastError = tr("Content item with id(%1) not found in manifest").arg(itemId);
 		qWarning() << zLastError;
 		return QString();
 	}
@@ -291,7 +291,7 @@ QString readerform::findOpfFilePath(QuaZipFile& containerFileStream)
 	while (!xml.atEnd() && !xml.hasError())
 	{
 		xml.readNext();
-		if (!xml.isStartElement() && xml.name().toString() == "rootfile")
+		if (xml.isStartElement() && xml.name().toString() == "rootfile")
 		{
 			QXmlStreamAttributes attributes = xml.attributes();//ÌáÈ¡ÊôÐÔ
 			if (attributes.hasAttribute("full-path"))
@@ -312,7 +312,7 @@ QString readerform::findOpfFilePath(QuaZipFile& containerFileStream)
 
 bool readerform::parseOpfFile()
 {
-	if (!zEpubFile || zEpubFile->isOpen() || zOpfFilePath.isEmpty())
+	if (!zEpubFile || !zEpubFile->isOpen() || zOpfFilePath.isEmpty())
 	{
 		zLastError = tr("opf file path is empty or epub is not open");
 		qWarning() << zLastError;
