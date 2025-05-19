@@ -17,6 +17,7 @@
 #include <QShortcut>
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -25,14 +26,29 @@ MainWindow::MainWindow(QWidget *parent)
     , m_currentTheme(0) // 默认浅色主题
     , m_currentFontSize(13) // 默认字体大小
     , zEpubParser(new readerform(this))//初始化epub解析器
+    , zChapterDocument(nullptr)//初始化
+    , zCurrentPage(1)//初始化章节页码
+    , zTotalPage(1)//初始化总页码
+    , zIsScorll(false)//初始化
 {
     ui->setupUi(this);
+
+    /*--------------------------------*/
+    zChapterDocument = new QTextDocument(this);
+    ui->readerTextBrowser->setDocument(zChapterDocument);//设置document实例，方便控制属性
+
+    /*--------------------------------*/
+
     setupUI();
     loadSampleBooks();
     initWindowList();
     refreshBookLists();
     refreshCategoriesList();
     setupReaderNavigation();
+
+    /*-----------------------------*/
+    connect(ui->readerTextBrowser->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::onReaderScroll);//连接 QTextBrowser 滚动条的 valueChanged 信号
+    /*-----------------------------*/
     
     // 初始化主题 - 根据系统时间自动选择主题
     QTime currentTime = QTime::currentTime();
@@ -912,26 +928,59 @@ void MainWindow::openBook(const QString &filePath)
         return;
     }
     
-    BookInfo &book = m_books[filePath];
     
     /*-----------------------------------------------------*/
+
+    zEpubParser->closeEpub();//先关闭
+
     if (!zEpubParser->openEpub(filePath))
     {
         QMessageBox::critical(this, tr("failure occur when open epub file"), tr("could open epub file%1,error:%2").arg(filePath).arg(zEpubParser->getLastError()));
+
+        zCurrentBookFikePath.clear();//清空路径
+        if (zChapterDocument)
+        {
+            zChapterDocument->setHtml("");//内容设置为空
+        }
+        zCurrentChapterId.clear();//id清空
+        updatePagination();//重置分页
+        goToPage(1);
         return;
     }
 
+    zCurrentBookFikePath = filePath;
 
     //打开成功
     QVariantMap metadata = zEpubParser->getMetaDate();//获取元数据
     QString epubTitle = metadata.value("title", QFileInfo(filePath).baseName()).toString();//获取标题
+
+    if (epubTitle.isEmpty())//如果标题为空
+    {
+        epubTitle = QFileInfo(filePath).baseName();//使用文件名作为标题
+    }
 
     if (m_books.contains(filePath))//更新标题
     {
         m_books[filePath].title = epubTitle;
     }
 
+    QList<SpineItem> spine = zEpubParser->getSpineItem();
+    QString firstId;
+    if (!spine.isEmpty())
+    {
+        for (const SpineItem& spineitem : spine)
+        {
+            if (spineitem.linear)
+            {
+                firstId = spineitem.idref;
+            }
+        }
+    }
+
     /*-----------------------------------------------------*/
+
+    BookInfo& book = m_books[filePath];
+    
 
     // 检查是否已经打开了这本书
     for (int i = 0; i < m_windows.size(); ++i) {
@@ -949,11 +998,11 @@ void MainWindow::openBook(const QString &filePath)
 
     book.lastReadTime = QDateTime::currentDateTime();
 
-    ui->pageSlider->setValue(1);
+    /*ui->pageSlider->setValue(1);*/
 
-    QFont font = ui->readerTextBrowser->font();
+    /*QFont font = ui->readerTextBrowser->font();
     font.setPointSize(m_currentFontSize);
-    ui->readerTextBrowser->setFont(font);
+    ui->readerTextBrowser->setFont(font);*/
 
     QString bgColor = m_currentTheme == 1 ? "#121212" : "#FEF9E7";
     QString textColor = m_currentTheme == 1 ? "#C8C8C8" : "#1C2833";
@@ -972,6 +1021,16 @@ void MainWindow::openBook(const QString &filePath)
     
     ui->readerTextBrowser->setStyleSheet(style);
     
+    /*-----------------------------*/
+    if (zChapterDocument)
+    {
+        QFont currentFont = ui->readerTextBrowser->font();
+        currentFont.setPointSize(m_currentFontSize);
+        zChapterDocument->setDefaultFont(currentFont);
+    }
+
+
+    /*-----------------------------*/
     // 应用淡入效果
     QGraphicsOpacityEffect *effect = new QGraphicsOpacityEffect(ui->readerTextBrowser);
     ui->readerTextBrowser->setGraphicsEffect(effect);
@@ -983,14 +1042,33 @@ void MainWindow::openBook(const QString &filePath)
     animation->setEasingCurve(QEasingCurve::InOutQuad);
     
     // 设置内容
-    QString sampleContent;
-    ui->readerTextBrowser->setText(sampleContent);
+    /*QString sampleContent;
+    ui->readerTextBrowser->setText(sampleContent);*/
     
     // 启动动画
     animation->start(QAbstractAnimation::DeleteWhenStopped);
     
     // 滚动到顶部
     ui->readerTextBrowser->verticalScrollBar()->setValue(0);
+
+    /*---------------------------*/
+    if (!firstId.isEmpty())
+    {
+        QTimer::singleShot(0, this, [this,firstId]() {
+            QFont currentFont = zChapterDocument->defaultFont();
+            if (currentFont.pointSize() != m_currentFontSize)
+            {
+                currentFont.setPointSize(m_currentFontSize);
+                zChapterDocument->setDefaultFont(currentFont);
+                ui->readerTextBrowser->setFont(currentFont);
+            }
+            loadChapter(firstId);
+            });
+    }
+
+
+    /*---------------------------*/
+
     
     // 更新状态栏信息
     ui->statusbar->showMessage(tr("当前阅读：《%1》").arg(book.title), 3000);
@@ -1327,11 +1405,23 @@ void MainWindow::setupReaderNavigation()
 void MainWindow::on_pageSlider_valueChanged(int value)
 {
     // 滑块变化时更新阅读位置
-    QScrollBar *scrollBar = ui->readerTextBrowser->verticalScrollBar();
+    /*
+    QScrollBar* scrollBar = ui->readerTextBrowser->verticalScrollBar();
     int maxValue = scrollBar->maximum();
     if (maxValue > 0) {
         int scrollPos = (value * maxValue) / 100;
         scrollBar->setValue(scrollPos);
+    }
+    */
+
+    if (zIsScorll)
+    {
+        return;
+    }
+
+    if (zChapterDocument && !zCurrentChapterId.isEmpty())
+    {
+        goToPage(value);
     }
 }
 
@@ -1356,6 +1446,10 @@ void MainWindow::updateFontSize(int change)
     }
     
     reader->setFont(font);
+
+    /*-------*/
+    zChapterDocument->setDefaultFont(font);//更新到文档
+    /*-------*/
     
     // 应用样式调整
     QString styleColor = m_currentTheme == 1 ? "#C8C8C8" : "#1C2833";
@@ -1376,6 +1470,20 @@ void MainWindow::updateFontSize(int change)
     
     reader->setStyleSheet(style);
     
+    /*--------------------------------*///更新字体大小后重新计算分页
+    if (ui->contentStackedWidget->currentWidget() == ui->readerPage && zChapterDocument && !zCurrentChapterId.isEmpty())
+    {
+        QTimer::singleShot(0, this, [this]() {
+            if (zChapterDocument && !zCurrentChapterId.isEmpty())
+            {
+                updatePagination();
+                goToPage(zCurrentPage);
+            }
+            });
+    }
+
+    /*--------------------------------*/
+
     // 显示当前字体大小的提示
     ui->statusbar->showMessage(tr("字体大小: %1pt").arg(m_currentFontSize), 2000);
 }
@@ -1383,11 +1491,19 @@ void MainWindow::updateFontSize(int change)
 void MainWindow::gotoPreviousPage()
 {
     //上一页
+    if (zChapterDocument && !zCurrentChapterId.isEmpty() && zCurrentPage > 1)
+    {
+        goToPage(zCurrentPage - 1);
+    }
 }
 
 void MainWindow::gotoNextPage()
 {
     //下一页
+    if (zChapterDocument && !zCurrentChapterId.isEmpty() && zCurrentPage < zTotalPage)
+    {
+        goToPage(zCurrentPage + 1);
+    }
 }
 
 void MainWindow::on_fontSizeDecreaseButton_clicked()
@@ -1398,4 +1514,182 @@ void MainWindow::on_fontSizeDecreaseButton_clicked()
 void MainWindow::on_fontSizeIncreaseButton_clicked()
 {
     updateFontSize(1);
+}
+
+
+void MainWindow::loadChapter(const QString& itemId)
+{
+    if (!zEpubParser)
+    {
+        qWarning() << "zEpubParser is NULL";
+        zChapterDocument->setHtml("<p>错误：EPUB解析器未被正确初始化。</p>");
+        zCurrentChapterId.clear();
+        updatePagination();
+        goToPage(1);
+        return;
+    }
+
+    if (zCurrentBookFikePath.isEmpty())
+    {
+        qWarning() << "zCurrentBookFilePath is NULL";
+        zChapterDocument->setHtml("<p>错误：当前未打开EPUB书籍");
+        updatePagination();
+        goToPage(1);
+        return;
+    }
+
+    zCurrentChapterId = itemId;
+    QString chapterHtml = zEpubParser->getContentById(itemId);
+
+    if (chapterHtml.isEmpty())
+    {
+        QString errorMessage = zEpubParser->getLastError();
+        if (!errorMessage.isEmpty())
+        {
+            qWarning() << "getContentById failed (error):" << errorMessage;
+            chapterHtml = tr("<p>加载章节 '%1' 失败: %2</p>").arg(itemId).arg(errorMessage);
+        }
+        else 
+        {
+            qWarning() << "getContentById failed";
+            chapterHtml = tr("<p>章节 '%1' 为空").arg(itemId);
+        }
+    }
+
+    zIsScorll = true;
+
+    QFont currentFont = zChapterDocument->defaultFont();
+    currentFont.setPointSize(m_currentFontSize);
+    zChapterDocument->setDefaultFont(currentFont);
+
+    zChapterDocument->setHtml(chapterHtml);
+
+    updatePagination();
+
+    goToPage(1);//默认第一页，要改
+
+    zIsScorll = false;
+
+    QGraphicsOpacityEffect* effect = qobject_cast<QGraphicsOpacityEffect*>(ui->readerTextBrowser->graphicsEffect());
+    if (effect) 
+    {
+        effect->setOpacity(0.0);
+        QPropertyAnimation* animation = new QPropertyAnimation(effect, "opacity", this);
+        animation->setDuration(300);
+        animation->setStartValue(0.0);
+        animation->setEndValue(1.0);
+        animation->setEasingCurve(QEasingCurve::InOutQuad);
+        animation->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+}
+
+
+void MainWindow::updatePagination()
+{
+    if (!zChapterDocument || !ui->readerTextBrowser->viewport())
+    {
+        return;
+    }
+
+    QFont docFont = zChapterDocument->defaultFont();
+    if (docFont.pointSize() != m_currentFontSize)
+    {
+        docFont.setPointSize(m_currentFontSize);
+        zChapterDocument->setDefaultFont(docFont);
+    }
+
+    QSizeF viewPointSize = ui->readerTextBrowser->viewport()->size();
+    if (viewPointSize.height() <= 0 || viewPointSize.width() <= 0)
+    {
+        zTotalPage = 1;//至少一页
+    }
+    else
+    {
+        zChapterDocument->setPageSize(viewPointSize);
+        zTotalPage = zChapterDocument->pageCount();
+        if (zTotalPage == 0)
+        {
+            zTotalPage = 1;//至少一页
+        }
+    }
+
+    if (zCurrentPage > zTotalPage)
+    {
+        zCurrentPage = zTotalPage;//保证当前页数在总页数范围内
+    }
+    if (zCurrentPage < 1)
+    {
+        zCurrentPage = 1;//确保从第一页开始
+    }
+
+    zIsScorll = true;
+    ui->pageSlider->setRange(1, zTotalPage);
+    ui->pageSlider->setValue(zCurrentPage);
+    ui->pageSlider->setEnabled(zTotalPage > 1);
+    zIsScorll = false;
+}
+
+void MainWindow::goToPage(int pageNum)
+{
+    if (!zChapterDocument || zTotalPage == 0)
+    {
+        return;
+    }
+
+    int targetPage = qBound(1, pageNum, zTotalPage);//确保在范围内
+
+    zCurrentPage = targetPage;
+
+    qreal PageHight = zChapterDocument->pageSize().height();
+    if (PageHight <= 0)
+    {
+        if (ui->pageSlider->value() != zCurrentPage)
+        {
+            zIsScorll = true;
+            ui->pageSlider->setValue(zCurrentPage);
+            zIsScorll = false;
+        }
+        return;
+    }
+
+    int scrollPos = qRound((zCurrentPage - 1) * PageHight);
+
+    zIsScorll = true;
+    ui->readerTextBrowser->verticalScrollBar()->setValue(scrollPos);
+    if (ui->pageSlider->value() != zCurrentPage)
+    {
+        ui->pageSlider->setValue(zCurrentPage);
+    }
+    zIsScorll = false;
+
+}
+
+void MainWindow::onReaderScroll()
+{
+    if (zIsScorll || !zChapterDocument || zCurrentChapterId.isEmpty())
+    {
+        return;
+    }
+
+    qreal PageHeight = zChapterDocument->pageSize().height();
+    if (PageHeight <= 0)
+    {
+        return;
+    }
+
+    int currentScrollPos = ui->readerTextBrowser->verticalScrollBar()->value();
+
+    int newPage = qRound(static_cast<qreal>(currentScrollPos) / PageHeight) + 1;
+
+    newPage = qBound(1, newPage, zTotalPage);
+
+    if (newPage != zCurrentPage)
+    {
+        zCurrentPage = newPage;
+        zIsScorll = true;
+        ui->pageSlider->setValue(newPage);
+        zIsScorll = false;
+    }
+
+
 }

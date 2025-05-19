@@ -12,6 +12,7 @@
 #include <QMenu>
 #include <QInputDialog>
 #include "readerform.h"
+#include <QTextDocument>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -105,11 +106,24 @@ private slots:
     void on_fontSizeDecreaseButton_clicked();
     void on_fontSizeIncreaseButton_clicked();
 
+    //滚动条
+    void onReaderScroll();
+
 private:
     Ui::MainWindow *ui;
 
     
     readerform* zEpubParser;//指向epub解析的指针
+    
+    QString zCurrentBookFikePath;//当前打开书的路径
+
+    QString zCurrentChapterId;//当前章节的id
+
+    QTextDocument* zChapterDocument;//文档对象
+
+    int zCurrentPage;//当前页码
+    int zTotalPage;//总页数
+    bool zIsScorll;//防止滑动和滚动递归触发
 
     // 存储所有电子书信息
     QMap<QString, BookInfo> m_books;
@@ -190,6 +204,11 @@ private:
     int m_currentFontSize;
     void gotoPreviousPage();
     void gotoNextPage();
+
+
+    void loadChapter(const QString& itemId);//载入章节
+    void goToPage(int pageNum);//跳转
+    void updatePagination();//计算页数
 
 
     // QObject interface
