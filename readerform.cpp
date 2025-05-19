@@ -16,7 +16,7 @@ QString readerform::normalHref(const QString& opfBase, const QString& relHref) c
 	int anchorPos = pathOnly.indexOf('#');
 	if (anchorPos != -1)//去除锚点
 	{
-		pathOnly = pathOnly.left('#');
+		pathOnly = pathOnly.left(anchorPos);
 	}
 
 	QUrl baseUrl;
@@ -31,7 +31,7 @@ QString readerform::normalHref(const QString& opfBase, const QString& relHref) c
 
 	QUrl resolvedUrl = baseUrl.resolved(QUrl::fromUserInput(pathOnly));
 	QString filePath = resolvedUrl.path();
-	if (filePath.endsWith('/'))
+	if (filePath.startsWith('/'))
 	{
 		filePath = filePath.mid(1);
 	}
@@ -641,7 +641,7 @@ void readerform::parseSpine(QXmlStreamReader& xml)
 
 	if (spineAttributes.hasAttribute("toc"))//提取toc属性
 	{
-		zNcxItemId = spineAttributes.value("tox").toString();
+		zNcxItemId = spineAttributes.value("toc").toString();
 	}
 	else
 	{
