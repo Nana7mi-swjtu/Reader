@@ -549,6 +549,13 @@
             </widget>
            </item>
            <item>
+            <widget class="QComboBox" name="bookmarkComboBox">
+             <property name="placeholderText">
+              <string>选择书签</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="addToButton">
              <property name="text">
               <string>添加到...</string>
@@ -617,62 +624,41 @@ li.checked::marker { content: &quot;\2612&quot;; }
             </widget>
            </item>
            <item>
-            <spacer name="horizontalSpacer_6">
-             <property name="orientation">
-              <enum>Qt::Orientation::Horizontal</enum>
-             </property>
-             <property name="sizeType">
-              <enum>QSizePolicy::Policy::Fixed</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>20</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
-            <widget class="QPushButton" name="fontSizeDecreaseButton">
+            <widget class="QLabel" name="currentPageLabel">
              <property name="minimumSize">
               <size>
-               <width>36</width>
-               <height>36</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>36</width>
-               <height>60</height>
+               <width>40</width>
+               <height>0</height>
               </size>
              </property>
              <property name="text">
-              <string>A-</string>
+              <string>1</string>
              </property>
-             <property name="flat">
-              <bool>true</bool>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="fontSizeIncreaseButton">
+            <widget class="QLabel" name="pageSeparatorLabel">
+             <property name="text">
+              <string>/</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="totalPagesLabel">
              <property name="minimumSize">
               <size>
-               <width>36</width>
-               <height>36</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>36</width>
-               <height>60</height>
+               <width>40</width>
+               <height>0</height>
               </size>
              </property>
              <property name="text">
-              <string>A+</string>
+              <string>1</string>
              </property>
-             <property name="flat">
-              <bool>true</bool>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
              </property>
             </widget>
            </item>
