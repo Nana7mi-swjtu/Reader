@@ -127,7 +127,7 @@ private:
     bool zIsScorll;//防止滑动和滚动递归触发
 
     // 存储所有电子书信息
-    QMap<QString, BookInfo> m_books;
+    QMap<QString, BookInfo> allBooks;
     
     // 存储分类信息
     QMap<QString, CategoryInfo> m_categories;
