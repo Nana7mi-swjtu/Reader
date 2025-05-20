@@ -64,8 +64,7 @@ private:
 	QString zOpfFilePath;//.opf在zip中的路径
 	QString zOpfbasePath;//.opf文件所在目录的路径
 
-	QMap<QString, epubManifestItem> zManifestItem; // 键: item ID
-	/*QStringList zSpineItemIds;*/
+	QMap<QString, epubManifestItem> zManifestItem; // 键->值：id->item
 	QList<SpineItem> zSpineItem;// 阅读顺序 (item ID 列表)
 	QString zNcxItemId;//存储spine中的ncx属性
 

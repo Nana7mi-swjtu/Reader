@@ -29,7 +29,7 @@ QString readerform::normalHref(const QString& opfBase, const QString& relHref) c
 		baseUrl = QUrl("file:///" + (opfBase.endsWith('/') ? opfBase : opfBase + "/"));
 	}
 
-	QUrl resolvedUrl = baseUrl.resolved(QUrl::fromUserInput(pathOnly));
+	QUrl resolvedUrl = baseUrl.resolved(QUrl(pathOnly));
 	QString filePath = resolvedUrl.path();
 	if (filePath.startsWith('/'))
 	{
@@ -368,7 +368,7 @@ bool readerform::parseOpfFile()
 
 void readerform::parseOpfMetadata(QXmlStreamReader& xml)
 {
-	if (!xml.isStartElement() || xml.name().toString() == "metadata")//防止错误进入
+	if (!xml.isStartElement() || xml.name().toString() != "metadata")//防止错误进入
 		return;
 
 	const QString dcNamespaceUri = "http://purl.org/dc/elements/1.1/";
@@ -562,7 +562,7 @@ void readerform::parseOpfMetadata(QXmlStreamReader& xml)
 
 void readerform::parseManifest(QXmlStreamReader& xml)
 {
-	if (!xml.isStartElement() || xml.name().toString() == "manifest")//防止无manifest标签
+	if (!xml.isStartElement() || xml.name().toString() != "manifest")//防止无manifest标签
 	{
 		zLastError = tr("no manifest tag");
 		qWarning() << zLastError;
@@ -785,7 +785,7 @@ bool readerform::parseNcxFile(const QString& ncxFilePathInZip)
 
 		if (xml.isStartElement())
 		{
-			if (xml.name().toString() == "nacMap")
+			if (xml.name().toString() == "navMap")
 			{
 				while (!(xml.isEndElement() && xml.name().toString() == "navMap") && !xml.atEnd())//调用辅助解析函数
 				{
@@ -841,7 +841,7 @@ void readerform::parseNcxNavPoint(QXmlStreamReader& xml)
 
 			else if (tagName == "content")
 			{
-				currentCotentSrc = xml.attributes().value("scr").toString();
+				currentCotentSrc = xml.attributes().value("src").toString();
 
 				if (xml.isStartElement())
 				{
