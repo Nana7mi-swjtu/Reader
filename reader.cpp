@@ -969,17 +969,24 @@ void MainWindow::openBook(const QString &filePath)
     }
 
     QList<SpineItem> spine = zEpubParser->getSpineItem();
-    QString firstId;
-    if (!spine.isEmpty())
+
+    /*----------------------*/
+    zCurrentBookSpineId.clear();//清空
+    zCurrentBookItemIndex = -1;
+
+    for (const SpineItem& spineitem : spine)//依次插入
     {
-        for (const SpineItem& spineitem : spine)
+        if (spineitem.linear)
         {
-            if (spineitem.linear)
-            {
-                firstId = spineitem.idref;
-                break;
-            }
+            zCurrentBookSpineId.append(spineitem.idref);
         }
+    }
+    /*----------------------*/
+
+    QString firstId;
+    if (!zCurrentBookSpineId.isEmpty())
+    {
+        firstId = zCurrentBookSpineId.first();
     }
 
     /*-----------------------------------------------------*/
@@ -1583,6 +1590,8 @@ void MainWindow::loadChapter(const QString& itemId)
     updatePagination();
 
     goToPage(1);//默认第一页，要改
+
+    zCurrentBookItemIndex = zCurrentBookSpineId.indexOf(itemId);//更新索引
 
     zIsScorll = false;
 
