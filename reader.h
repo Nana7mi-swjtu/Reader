@@ -36,6 +36,7 @@ struct BookInfo {
     bool isFavorite;         // 是否是收藏
     QDateTime lastReadTime;  // 最后阅读时间
     QList<QString> categories; // 所属分类
+    QMap<int, QString> bookmarks; // 书签列表，键为页码，值为书签描述
     
     BookInfo() : isFavorite(false) {
         totalReadTime = QTime(0, 0);
@@ -103,11 +104,11 @@ private slots:
     void on_themeButton_clicked();
     
     void on_pageSlider_valueChanged(int value);
-    void on_fontSizeDecreaseButton_clicked();
-    void on_fontSizeIncreaseButton_clicked();
 
     //滚动条
     void onReaderScroll();
+
+    void on_bookmarkComboBox_currentIndexChanged(int index);
 
 private:
     Ui::MainWindow *ui;
@@ -200,7 +201,6 @@ private:
     
     // 阅读器相关函数
     void setupReaderNavigation();
-    void updateFontSize(int change);
     int m_currentFontSize;
     void gotoPreviousPage();
     void gotoNextPage();
@@ -210,6 +210,7 @@ private:
     void goToPage(int pageNum);//跳转
     void updatePagination();//计算页数
 
+    void updateBookmarkComboBox();
 
     // QObject interface
 public:

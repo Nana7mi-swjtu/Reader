@@ -94,8 +94,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->readerTextBrowser->installEventFilter(this);
     QShortcut *zoomInShortcut = new QShortcut(QKeySequence("Ctrl++"), this);
     QShortcut *zoomOutShortcut = new QShortcut(QKeySequence("Ctrl+-"), this);
-    connect(zoomInShortcut, &QShortcut::activated, this, &MainWindow::on_fontSizeIncreaseButton_clicked);
-    connect(zoomOutShortcut, &QShortcut::activated, this, &MainWindow::on_fontSizeDecreaseButton_clicked);
 
     // 添加书签快捷键
     QShortcut *bookmarkShortcut = new QShortcut(QKeySequence("Ctrl+M"), this);
@@ -602,7 +600,15 @@ void MainWindow::on_closeBookButton_clicked()
 
 void MainWindow::on_bookmarkButton_clicked()
 {
-    //添加书签
+    QString currentFilePath = zCurrentBookFikePath;
+    if (currentFilePath.isEmpty()) return;
+    
+    auto it = m_books.find(currentFilePath);
+    if (it != m_books.end()) {
+        it->bookmarks.insert(zCurrentPage, QString("第 %1 页").arg(zCurrentPage));
+        updateBookmarkComboBox();
+        QMessageBox::information(this, "添加书签", QString("已在第 %1 页添加书签").arg(zCurrentPage));
+    }
 }
 
 void MainWindow::on_addToButton_clicked()
@@ -1125,6 +1131,36 @@ void MainWindow::switchTheme(int themeIndex)
     
     if (themeIndex == 1) {
         // 深色主题
+        ui->bookmarkComboBox->setStyleSheet(
+            "QComboBox {"
+            "    background-color: #252525;"
+            "    color: #C8C8C8;"
+            "    border: 1px solid #2C2C2C;"
+            "    border-radius: 4px;"
+            "    padding: 4px 8px;"
+            "    min-height: 24px;"
+            "}"
+            "QComboBox:hover {"
+            "    background-color: #2A2A2A;"
+            "    border: 1px solid #3D6889;"
+            "}"
+            "QComboBox::drop-down {"
+            "    border: none;"
+            "    width: 20px;"
+            "}"
+            "QComboBox::down-arrow {"
+            "    image: url(:/icons/down_arrow_white.svg);"
+            "    width: 12px;"
+            "    height: 12px;"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "    background-color: #252525;"
+            "    color: #C8C8C8;"
+            "    border: 1px solid #2C2C2C;"
+            "    selection-background-color: #3D6889;"
+            "    selection-color: #FFFFFF;"
+            "}"
+            );
         styleSheet.replace("#F9F9F9", "#121212"); // 背景色
         styleSheet.replace("#FFFFFF", "#1A1A1A"); // 控件背景
         styleSheet.replace("#DDDDDD", "#2C2C2C"); // 边框色
@@ -1190,7 +1226,50 @@ void MainWindow::switchTheme(int themeIndex)
         this->style()->unpolish(this);
         this->style()->polish(this);
         
+        // 设置页码标签深色主题样式
+        QString pageLabelStyle = QString(
+            "QLabel {"
+            "    color: #C8C8C8;"
+            "    font-size: 12px;"
+            "    font-weight: bold;"
+            "    padding: 0 4px;"
+            "}"
+        );
+        ui->currentPageLabel->setStyleSheet(pageLabelStyle);
+        ui->totalPagesLabel->setStyleSheet(pageLabelStyle);
+        ui->pageSeparatorLabel->setStyleSheet(pageLabelStyle);
+        
     } else {
+        ui->bookmarkComboBox->setStyleSheet(
+            "QComboBox {"
+            "    background-color: #FFFFFF;"
+            "    color: #333333;"
+            "    border: 1px solid #DDDDDD;"
+            "    border-radius: 4px;"
+            "    padding: 4px 8px;"
+            "    min-height: 24px;"
+            "}"
+            "QComboBox:hover {"
+            "    background-color: #F5F5F5;"
+            "    border: 1px solid #2196F3;"
+            "}"
+            "QComboBox::drop-down {"
+            "    border: none;"
+            "    width: 20px;"
+            "}"
+            "QComboBox::down-arrow {"
+            "    image: url(:/icons/down_arrow.svg);"
+            "    width: 12px;"
+            "    height: 12px;"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "    background-color: #FFFFFF;"
+            "    color: #333333;"
+            "    border: 1px solid #DDDDDD;"
+            "    selection-background-color: #2196F3;"
+            "    selection-color: #FFFFFF;"
+            "}"
+            );
         // 恢复浅色主题（如果之前是深色主题）
         styleSheet.replace("#121212", "#F9F9F9"); // 背景色
         styleSheet.replace("#1A1A1A", "#FFFFFF"); // 控件背景
@@ -1243,6 +1322,19 @@ void MainWindow::switchTheme(int themeIndex)
                           "#categoryListWidget::item { background-color: #1D1D1D; color: #B0B0B0; border-bottom: 1px solid #282828; }", "");
         styleSheet = styleSheet.replace("#allBooksListWidget::item:hover, #favPageListWidget::item:hover, "
                           "#categoryListWidget::item:hover { background-color: #2A2A2A; }", "");
+        
+        // 设置页码标签浅色主题样式
+        QString pageLabelStyle = QString(
+            "QLabel {"
+            "    color: #333333;"
+            "    font-size: 12px;"
+            "    font-weight: bold;"
+            "    padding: 0 4px;"
+            "}"
+        );
+        ui->currentPageLabel->setStyleSheet(pageLabelStyle);
+        ui->totalPagesLabel->setStyleSheet(pageLabelStyle);
+        ui->pageSeparatorLabel->setStyleSheet(pageLabelStyle);
     }
     
     // 应用样式表
@@ -1357,20 +1449,7 @@ void MainWindow::switchTheme(int themeIndex)
 
 void MainWindow::setupReaderNavigation()
 {
-    
-    // 设置字体调整按钮
-    QFont smallerFont = ui->fontSizeDecreaseButton->font();
-    smallerFont.setPointSize(10);
-    smallerFont.setBold(true);
-    ui->fontSizeDecreaseButton->setFont(smallerFont);
-    ui->fontSizeDecreaseButton->setToolTip(tr("减小字体"));
-    
-    QFont largerFont = ui->fontSizeIncreaseButton->font();
-    largerFont.setPointSize(16);
-    largerFont.setBold(true);
-    ui->fontSizeIncreaseButton->setFont(largerFont);
-    ui->fontSizeIncreaseButton->setToolTip(tr("增大字体"));
-    
+
     // 设置页面滑块
     ui->pageSlider->setMinimum(1);
     ui->pageSlider->setMaximum(100);
@@ -1398,8 +1477,7 @@ void MainWindow::setupReaderNavigation()
     // 连接信号
 
     connect(ui->pageSlider, &QSlider::valueChanged, this, &MainWindow::on_pageSlider_valueChanged);
-    connect(ui->fontSizeDecreaseButton, &QPushButton::clicked, this, &MainWindow::on_fontSizeDecreaseButton_clicked);
-    connect(ui->fontSizeIncreaseButton, &QPushButton::clicked, this, &MainWindow::on_fontSizeIncreaseButton_clicked);
+    updateBookmarkComboBox(); // 初始化书签下拉框
 }
 
 
@@ -1426,69 +1504,6 @@ void MainWindow::on_pageSlider_valueChanged(int value)
     }
 }
 
-void MainWindow::updateFontSize(int change)
-{
-    // 更新字体大小
-    m_currentFontSize += change;
-    
-    // 应用到阅读器
-    QTextBrowser *reader = ui->readerTextBrowser;
-    QFont font = reader->font();
-    font.setPointSize(m_currentFontSize);
-    
-    // 更新字距和行距
-    QString lineHeight;
-    if (m_currentFontSize <= 12) {
-        lineHeight = "1.6";
-    } else if (m_currentFontSize <= 16) {
-        lineHeight = "1.8";
-    } else {
-        lineHeight = "2.0";
-    }
-    
-    reader->setFont(font);
-
-    /*-------*/
-    zChapterDocument->setDefaultFont(font);//更新到文档
-    /*-------*/
-    
-    // 应用样式调整
-    QString styleColor = m_currentTheme == 1 ? "#C8C8C8" : "#1C2833";
-    QString bgColor = m_currentTheme == 1 ? "#121212" : "#FEF9E7";
-    
-    QString style = QString(
-        "QTextBrowser#readerTextBrowser {"
-        "    color: %1 !important;"
-        "    background-color: %2 !important;"
-        "    line-height: %3 !important;"
-        "    text-align: justify;"
-        "    letter-spacing: 0.2px;"
-        "    padding: 24px 32px;"
-        "    border-radius: 8px;"
-        "    border: none;"
-        "}"
-    ).arg(styleColor, bgColor, lineHeight);
-    
-    reader->setStyleSheet(style);
-    
-    /*--------------------------------*///更新字体大小后重新计算分页
-    if (ui->contentStackedWidget->currentWidget() == ui->readerPage && zChapterDocument && !zCurrentChapterId.isEmpty())
-    {
-        QTimer::singleShot(0, this, [this]() {
-            if (zChapterDocument && !zCurrentChapterId.isEmpty())
-            {
-                updatePagination();
-                goToPage(zCurrentPage);
-            }
-            });
-    }
-
-    /*--------------------------------*/
-
-    // 显示当前字体大小的提示
-    ui->statusbar->showMessage(tr("字体大小: %1pt").arg(m_currentFontSize), 2000);
-}
-
 void MainWindow::gotoPreviousPage()
 {
     //上一页
@@ -1507,15 +1522,7 @@ void MainWindow::gotoNextPage()
     }
 }
 
-void MainWindow::on_fontSizeDecreaseButton_clicked()
-{
-    updateFontSize(-1);
-}
 
-void MainWindow::on_fontSizeIncreaseButton_clicked()
-{
-    updateFontSize(1);
-}
 
 
 void MainWindow::loadChapter(const QString& itemId)
@@ -1628,6 +1635,10 @@ void MainWindow::updatePagination()
     ui->pageSlider->setValue(zCurrentPage);
     ui->pageSlider->setEnabled(zTotalPage > 1);
     zIsScorll = false;
+
+    // 更新页码显示
+    ui->currentPageLabel->setText(QString::number(zCurrentPage));
+    ui->totalPagesLabel->setText(QString::number(zTotalPage));
 }
 
 void MainWindow::goToPage(int pageNum)
@@ -1694,3 +1705,34 @@ void MainWindow::onReaderScroll()
 
 
 }
+
+// 更新书签下拉框
+void MainWindow::updateBookmarkComboBox()
+{
+    ui->bookmarkComboBox->clear();
+    ui->bookmarkComboBox->addItem("选择书签"); // 添加默认选项
+    
+    QString currentFilePath = zCurrentBookFikePath;
+    if (currentFilePath.isEmpty()) return;
+    
+    auto it = m_books.find(currentFilePath);
+    if (it != m_books.end()) {
+        const auto& bookmarks = it->bookmarks;
+        // 将书签按页码排序
+        QList<int> pages = bookmarks.keys();
+        std::sort(pages.begin(), pages.end());
+        for (int page : pages) {
+            ui->bookmarkComboBox->addItem(QString("第 %1 页").arg(page), page);
+        }
+    }
+}
+
+// 处理书签选择
+void MainWindow::on_bookmarkComboBox_currentIndexChanged(int index)
+{
+    if (index <= 0) return; // 忽略默认选项
+    
+    int page = ui->bookmarkComboBox->currentData().toInt();
+    goToPage(page);
+}
+
