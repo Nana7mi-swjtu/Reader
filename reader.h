@@ -122,6 +122,9 @@ private:
 
     QTextDocument* zChapterDocument;//文档对象
 
+    QList<QString> zCurrentBookSpineId;//章节id列表
+    int zCurrentBookItemIndex;//章节索引
+
     int zCurrentPage;//当前页码
     int zTotalPage;//总页数
     bool zIsScorll;//防止滑动和滚动递归触发
