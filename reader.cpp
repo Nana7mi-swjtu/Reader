@@ -311,8 +311,8 @@ void MainWindow::updateFavoritesPage()
     
     QList<QString> favorites = getFavoriteBooks();
     for (const QString &path : favorites) {
-        if (m_books.contains(path)) {
-            addBookToList(ui->favPageListWidget, m_books[path]);
+        if (allBooks.contains(path)) {
+            addBookToList(ui->favPageListWidget, allBooks[path]);
         }
     }
 }
@@ -328,8 +328,8 @@ void MainWindow::updateCategoryPage(const QString &categoryName)
     
     QList<QString> books = m_categories[categoryName].books;
     for (const QString &path : books) {
-        if (m_books.contains(path)) {
-            addBookToList(ui->categoryListWidget, m_books[path]);
+        if (allBooks.contains(path)) {
+            addBookToList(ui->categoryListWidget, allBooks[path]);
         }
     }
 }
@@ -340,7 +340,7 @@ void MainWindow::refreshBookLists()
     ui->allBooksListWidget->clear();
     
     // 提取所有书籍并进行排序
-    QList<BookInfo> sortedBooks = m_books.values();
+    QList<BookInfo> sortedBooks = allBooks.values();
     
     // 根据排序方法排序
     if (m_sortMethod == 0) {
@@ -436,11 +436,11 @@ void MainWindow::loadSampleBooks()
     book5.lastReadTime = QDateTime::currentDateTime();
     
     // 添加到书籍集合
-    m_books[book1.filePath] = book1;
-    m_books[book2.filePath] = book2;
-    m_books[book3.filePath] = book3;
-    m_books[book4.filePath] = book4;
-    m_books[book5.filePath] = book5;
+    allBooks[book1.filePath] = book1;
+    allBooks[book2.filePath] = book2;
+    allBooks[book3.filePath] = book3;
+    allBooks[book4.filePath] = book4;
+    allBooks[book5.filePath] = book5;
     
     // 创建示例分类
     createCategory("文学");
@@ -467,7 +467,7 @@ void MainWindow::createCategory(const QString &name)
 
 void MainWindow::addBookToCategory(const QString &filePath, const QString &categoryName)
 {
-    if (!m_books.contains(filePath) || !m_categories.contains(categoryName)) {
+    if (!allBooks.contains(filePath) || !m_categories.contains(categoryName)) {
         return;
     }
     
@@ -475,8 +475,8 @@ void MainWindow::addBookToCategory(const QString &filePath, const QString &categ
     m_categories[categoryName].books.append(filePath);
     
     // 在书籍中添加分类信息
-    if (!m_books[filePath].categories.contains(categoryName)) {
-        m_books[filePath].categories.append(categoryName);
+    if (!allBooks[filePath].categories.contains(categoryName)) {
+        allBooks[filePath].categories.append(categoryName);
     }
 }
 
@@ -512,7 +512,7 @@ QList<QString> MainWindow::getBooksInCategory(const QString &categoryName)
 QList<QString> MainWindow::getFavoriteBooks()
 {
     QList<QString> favorites;
-    for (auto it = m_books.begin(); it != m_books.end(); ++it) {
+    for (auto it = allBooks.begin(); it != allBooks.end(); ++it) {
         if (it.value().isFavorite) {
             favorites.append(it.key());
         }
@@ -527,15 +527,15 @@ void MainWindow::searchBooks(QListWidget *listWidget, const QString &text, const
     if (text.isEmpty()) {
         // 如果搜索文本为空，显示所有书籍
         for (const QString &path : bookPaths) {
-            if (m_books.contains(path)) {
-                addBookToList(listWidget, m_books[path]);
+            if (allBooks.contains(path)) {
+                addBookToList(listWidget, allBooks[path]);
             }
         }
     } else {
         // 否则只显示匹配的书籍
         for (const QString &path : bookPaths) {
-            if (m_books.contains(path) && m_books[path].title.contains(text, Qt::CaseInsensitive)) {
-                addBookToList(listWidget, m_books[path]);
+            if (allBooks.contains(path) && allBooks[path].title.contains(text, Qt::CaseInsensitive)) {
+                addBookToList(listWidget, allBooks[path]);
             }
         }
     }
@@ -554,7 +554,7 @@ void MainWindow::on_addBookButton_clicked()
     QString filePath = QFileDialog::getOpenFileName(this, tr("打开电子书"),
                                                   "", tr("电子书 (*.epub)"));
     if (!filePath.isEmpty()) {
-        if (!m_books.contains(filePath)) {
+        if (!allBooks.contains(filePath)) {
             BookInfo newBook;
             newBook.filePath = filePath;
             QFileInfo fileInfo(filePath);
@@ -563,7 +563,7 @@ void MainWindow::on_addBookButton_clicked()
             newBook.isFavorite = false;
             newBook.lastReadTime = QDateTime::currentDateTime();
             
-            m_books[filePath] = newBook;
+            allBooks[filePath] = newBook;
             refreshBookLists();
         }
         
@@ -603,8 +603,8 @@ void MainWindow::on_bookmarkButton_clicked()
     QString currentFilePath = zCurrentBookFikePath;
     if (currentFilePath.isEmpty()) return;
     
-    auto it = m_books.find(currentFilePath);
-    if (it != m_books.end()) {
+    auto it = allBooks.find(currentFilePath);
+    if (it != allBooks.end()) {
         it->bookmarks.insert(zCurrentPage, QString("第 %1 页").arg(zCurrentPage));
         updateBookmarkComboBox();
         QMessageBox::information(this, "添加书签", QString("已在第 %1 页添加书签").arg(zCurrentPage));
@@ -622,7 +622,7 @@ void MainWindow::on_addToButton_clicked()
         }
         
         QString filePath = m_windows[index].identifier;
-        if (!m_books.contains(filePath)) {
+        if (!allBooks.contains(filePath)) {
             return;
         }
         
@@ -647,9 +647,9 @@ void MainWindow::on_addToButton_clicked()
         
         if (selectedAction == addToFavAction) {
             // 添加到收藏夹
-            m_books[filePath].isFavorite = true;
+            allBooks[filePath].isFavorite = true;
             QMessageBox::information(this, tr("添加到收藏夹"), 
-                                   tr("《%1》已添加到收藏夹").arg(m_books[filePath].title));
+                                   tr("《%1》已添加到收藏夹").arg(allBooks[filePath].title));
             
             // 刷新收藏夹（如果打开的话）
             for (int i = 0; i < m_windows.size(); ++i) {
@@ -668,14 +668,14 @@ void MainWindow::on_addToButton_clicked()
                 addBookToCategory(filePath, categoryName);
                 refreshCategoriesList();
                 QMessageBox::information(this, tr("添加到分类"), 
-                                       tr("《%1》已添加到分类 %2").arg(m_books[filePath].title, categoryName));
+                                       tr("《%1》已添加到分类 %2").arg(allBooks[filePath].title, categoryName));
             }
         } else if (selectedAction && categoriesMenu->actions().contains(selectedAction)) {
             // 添加到现有分类
             QString categoryName = selectedAction->data().toString();
             addBookToCategory(filePath, categoryName);
             QMessageBox::information(this, tr("添加到分类"), 
-                                   tr("《%1》已添加到分类 %2").arg(m_books[filePath].title, categoryName));
+                                   tr("《%1》已添加到分类 %2").arg(allBooks[filePath].title, categoryName));
             
             // 刷新分类页面（如果打开的话）
             for (int i = 0; i < m_windows.size(); ++i) {
@@ -747,7 +747,7 @@ void MainWindow::on_searchLineEdit_textChanged(const QString &text)
     ui->allBooksListWidget->clear();
     
     // 提取所有书籍并进行排序
-    QList<BookInfo> sortedBooks = m_books.values();
+    QList<BookInfo> sortedBooks = allBooks.values();
     
     // 根据排序方法排序
     if (m_sortMethod == 0) {
@@ -829,8 +829,8 @@ void MainWindow::onCategoriesListContextMenu(const QPoint &pos)
             m_categories[newName] = newCategory;
 
             for (const QString &path : newCategory.books) {
-                if (m_books.contains(path)) {
-                    QList<QString> &categories = m_books[path].categories;
+                if (allBooks.contains(path)) {
+                    QList<QString> &categories = allBooks[path].categories;
                     int index = categories.indexOf(categoryName);
                     if (index != -1) {
                         categories.replace(index, newName);
@@ -864,8 +864,8 @@ void MainWindow::onCategoriesListContextMenu(const QPoint &pos)
                                                              QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::Yes) {
             for (const QString &path : m_categories[categoryName].books) {
-                if (m_books.contains(path)) {
-                    m_books[path].categories.removeAll(categoryName);
+                if (allBooks.contains(path)) {
+                    allBooks[path].categories.removeAll(categoryName);
                 }
             }
 
@@ -930,7 +930,7 @@ void MainWindow::on_categoryListWidget_itemDoubleClicked(QListWidgetItem *item)
 
 void MainWindow::openBook(const QString &filePath)
 {
-    if (!m_books.contains(filePath)) {
+    if (!allBooks.contains(filePath)) {
         return;
     }
     
@@ -955,8 +955,6 @@ void MainWindow::openBook(const QString &filePath)
     }
 
     zCurrentBookFikePath = filePath;
-
-    //打开成功
     QVariantMap metadata = zEpubParser->getMetaDate();//获取元数据
     QString epubTitle = metadata.value("title", QFileInfo(filePath).baseName()).toString();//获取标题
 
@@ -965,9 +963,9 @@ void MainWindow::openBook(const QString &filePath)
         epubTitle = QFileInfo(filePath).baseName();//使用文件名作为标题
     }
 
-    if (m_books.contains(filePath))//更新标题
+    if (allBooks.contains(filePath))//更新标题
     {
-        m_books[filePath].title = epubTitle;
+        allBooks[filePath].title = epubTitle;
     }
 
     QList<SpineItem> spine = zEpubParser->getSpineItem();
@@ -986,7 +984,7 @@ void MainWindow::openBook(const QString &filePath)
 
     /*-----------------------------------------------------*/
 
-    BookInfo& book = m_books[filePath];
+    BookInfo& book = allBooks[filePath];
     
 
     // 检查是否已经打开了这本书
@@ -1071,6 +1069,16 @@ void MainWindow::openBook(const QString &filePath)
             }
             loadChapter(firstId);
             });
+    }
+
+    else
+    {
+        if (zChapterDocument)
+        {
+            zChapterDocument->setHtml("<p>error</p>");
+        }
+        QMessageBox::critical(this, tr("load error"), tr("no chapter"));
+        return;
     }
 
 
@@ -1540,7 +1548,7 @@ void MainWindow::loadChapter(const QString& itemId)
     if (zCurrentBookFikePath.isEmpty())
     {
         qWarning() << "zCurrentBookFilePath is NULL";
-        zChapterDocument->setHtml("<p>错误：当前未打开EPUB书籍");
+        zChapterDocument->setHtml("<p>错误：当前未打开EPUB书籍</p>");
         updatePagination();
         goToPage(1);
         return;
@@ -1674,6 +1682,8 @@ void MainWindow::goToPage(int pageNum)
     }
     zIsScorll = false;
 
+    //更新页码
+    ui->currentPageLabel->setText(QString::number(zCurrentPage));
 }
 
 void MainWindow::onReaderScroll()
@@ -1702,8 +1712,8 @@ void MainWindow::onReaderScroll()
         ui->pageSlider->setValue(newPage);
         zIsScorll = false;
     }
-
-
+    //更新页码
+    ui->currentPageLabel->setText(QString::number(zCurrentPage));
 }
 
 // 更新书签下拉框
@@ -1715,8 +1725,8 @@ void MainWindow::updateBookmarkComboBox()
     QString currentFilePath = zCurrentBookFikePath;
     if (currentFilePath.isEmpty()) return;
     
-    auto it = m_books.find(currentFilePath);
-    if (it != m_books.end()) {
+    auto it = allBooks.find(currentFilePath);
+    if (it != allBooks.end()) {
         const auto& bookmarks = it->bookmarks;
         // 将书签按页码排序
         QList<int> pages = bookmarks.keys();
