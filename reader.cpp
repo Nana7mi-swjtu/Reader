@@ -1493,8 +1493,56 @@ void MainWindow::setupReaderNavigation()
 
     connect(ui->pageSlider, &QSlider::valueChanged, this, &MainWindow::on_pageSlider_valueChanged);
     updateBookmarkComboBox(); // 初始化书签下拉框
-}
 
+    // 禁用文本浏览器的滚动条
+    ui->readerTextBrowser->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    ui->readerTextBrowser->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    // 创建并设置章节切换按钮
+    QPushButton *prevChapterButton = new QPushButton("<", ui->readerToolbarWidget);
+    QPushButton *nextChapterButton = new QPushButton(">", ui->readerToolbarWidget);
+    
+    prevChapterButton->setObjectName("prevChapterButton");
+    nextChapterButton->setObjectName("nextChapterButton");
+    
+    // 设置按钮样式
+    QString buttonStyle = 
+        "QPushButton {"
+        "    background-color: #2196F3;"
+        "    color: white;"
+        "    border: none;"
+        "    border-radius: 4px;"
+        "    padding: 4px 8px;"
+        "    min-width: 30px;"
+        "    max-width: 30px;"
+        "    font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #1976D2;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #0D47A1;"
+        "}";
+    
+    prevChapterButton->setStyleSheet(buttonStyle);
+    nextChapterButton->setStyleSheet(buttonStyle);
+    
+    // 设置工具提示
+    prevChapterButton->setToolTip(tr("上一章"));
+    nextChapterButton->setToolTip(tr("下一章"));
+    
+    // 将按钮添加到布局中
+    QHBoxLayout *layout = qobject_cast<QHBoxLayout*>(ui->readerToolbarWidget->layout());
+    if (layout) {
+        // 在页面滑块两侧插入章节按钮
+        layout->insertWidget(layout->indexOf(ui->pageSlider), prevChapterButton);
+        layout->insertWidget(layout->indexOf(ui->pageSlider) + 2, nextChapterButton);
+    }
+    
+    // 连接信号
+    connect(prevChapterButton, &QPushButton::clicked, this, &MainWindow::gotoPreviousChapter);
+    connect(nextChapterButton, &QPushButton::clicked, this, &MainWindow::gotoNextChapter);
+}
 
 void MainWindow::on_pageSlider_valueChanged(int value)
 {
@@ -1537,8 +1585,19 @@ void MainWindow::gotoNextPage()
     }
 }
 
+void MainWindow::gotoPreviousChapter()
+{
+    if (zCurrentBookItemIndex > 0) {
+        loadChapter(zCurrentBookSpineId[zCurrentBookItemIndex - 1]);
+    }
+}
 
-
+void MainWindow::gotoNextChapter()
+{
+    if (zCurrentBookItemIndex < zCurrentBookSpineId.size() - 1) {
+        loadChapter(zCurrentBookSpineId[zCurrentBookItemIndex + 1]);
+    }
+}
 
 void MainWindow::loadChapter(const QString& itemId)
 {
@@ -1606,8 +1665,16 @@ void MainWindow::loadChapter(const QString& itemId)
         animation->setEasingCurve(QEasingCurve::InOutQuad);
         animation->start(QAbstractAnimation::DeleteWhenStopped);
     }
-}
 
+    // 更新章节按钮状态
+    QPushButton *prevChapterButton = findChild<QPushButton*>("prevChapterButton");
+    QPushButton *nextChapterButton = findChild<QPushButton*>("nextChapterButton");
+    
+    if (prevChapterButton && nextChapterButton) {
+        prevChapterButton->setEnabled(zCurrentBookItemIndex > 0);
+        nextChapterButton->setEnabled(zCurrentBookItemIndex < zCurrentBookSpineId.size() - 1);
+    }
+}
 
 void MainWindow::updatePagination()
 {

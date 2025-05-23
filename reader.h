@@ -110,6 +110,9 @@ private slots:
 
     void on_bookmarkComboBox_currentIndexChanged(int index);
 
+    void gotoPreviousChapter();
+    void gotoNextChapter();
+
 private:
     Ui::MainWindow *ui;
 
