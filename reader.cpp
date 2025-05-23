@@ -18,6 +18,7 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QTimer>
+#include <QVariantMap>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -602,13 +603,31 @@ void MainWindow::on_bookmarkButton_clicked()
 {
     QString currentFilePath = zCurrentBookFikePath;
     if (currentFilePath.isEmpty()) return;
-    
+
     auto it = allBooks.find(currentFilePath);
-    if (it != allBooks.end()) {
-        it->bookmarks.insert(zCurrentPage, QString("第 %1 页").arg(zCurrentPage));
+    /*if (it != allBooks.end()) {
+        it->BookMarks.insert(zCurrentPage, QString("第 %1 页").arg(zCurrentPage));
         updateBookmarkComboBox();
         QMessageBox::information(this, "添加书签", QString("已在第 %1 页添加书签").arg(zCurrentPage));
+    }*/
+    QString chapterTitle;//章节标题
+    QMap<QString, QString> toc = zEpubParser->getTableofContent();
+    if (toc.contains(zCurrentChapterId))
+    {
+        chapterTitle = toc.value(zCurrentChapterId);
     }
+    bookMark newMark;
+    newMark.chapterId = zCurrentChapterId;
+    newMark.chapterTitle = chapterTitle;
+    newMark.pageInChapter = zCurrentPage;
+    if (it != allBooks.end())
+    {
+        it->BookMarks.append(newMark);
+        updateBookmarkComboBox();
+        QMessageBox::information(this, "添加书签", QString("已在%1 第 %2 页添加书签").arg(chapterTitle).arg(zCurrentPage));
+    }
+    
+
 }
 
 void MainWindow::on_addToButton_clicked()
@@ -1796,21 +1815,41 @@ void MainWindow::onReaderScroll()
 void MainWindow::updateBookmarkComboBox()
 {
     ui->bookmarkComboBox->clear();
-    ui->bookmarkComboBox->addItem("选择书签"); // 添加默认选项
+    ui->bookmarkComboBox->addItem("选择书签",QVariant()); // 添加默认选项
     
     QString currentFilePath = zCurrentBookFikePath;
     if (currentFilePath.isEmpty()) return;
     
     auto it = allBooks.find(currentFilePath);
     if (it != allBooks.end()) {
-        const auto& bookmarks = it->bookmarks;
-        // 将书签按页码排序
-        QList<int> pages = bookmarks.keys();
-        std::sort(pages.begin(), pages.end());
-        for (int page : pages) {
-            ui->bookmarkComboBox->addItem(QString("第 %1 页").arg(page), page);
+        const auto& bookmarks = it->BookMarks;
+        //// 将书签按页码排序
+        //QList<int> pages = bookmarks.keys();
+        //std::sort(pages.begin(), pages.end());
+        //for (int page : pages) {
+        //    ui->bookmarkComboBox->addItem(QString("第 %1 页").arg(page), page);
+        //}
+        QList<bookMark> sortBookMark = bookmarks;
+        std::sort(sortBookMark.begin(), sortBookMark.end(), [&](const bookMark& bookm1, const bookMark& bookm2) {
+            int index1 = zCurrentBookSpineId.indexOf(bookm1.chapterId);
+            int index2 = zCurrentBookSpineId.indexOf(bookm2.chapterId);
+
+            if (index1 != index2)
+                return index1 < index2;
+            
+            return bookm1.pageInChapter < bookm2.pageInChapter;
+            });
+            
+        for (const auto& bookmark : sortBookMark)
+        {
+            QString itemText = QString("%1 第 %2 页").arg(bookmark.chapterTitle).arg(bookmark.pageInChapter);
+            QVariantMap bookMarkData;
+            bookMarkData["chapterId"] = bookmark.chapterId;
+            bookMarkData["pageInChapter"] = bookmark.pageInChapter;
+            ui->bookmarkComboBox->addItem(itemText, QVariant::fromValue(bookMarkData));
         }
     }
+   
 }
 
 // 处理书签选择
@@ -1818,7 +1857,26 @@ void MainWindow::on_bookmarkComboBox_currentIndexChanged(int index)
 {
     if (index <= 0) return; // 忽略默认选项
     
-    int page = ui->bookmarkComboBox->currentData().toInt();
-    goToPage(page);
+    /*int page = ui->bookmarkComboBox->currentData().toInt();
+    QString chapter = ui->bookmarkComboBox->currentData().toString();*/
+    QVariant markData = ui->bookmarkComboBox->itemData(index);
+    if (markData.canConvert<QVariantMap>())
+    {
+        QVariantMap markDataMap = markData.toMap();
+        QString chapter = markDataMap.value("chapterId").toString();
+        int page = markDataMap.value("pageInChapter").toInt();
+        
+        if (chapter != zCurrentChapterId)
+        {
+            loadChapter(chapter);
+        }
+
+        if (chapter == zCurrentChapterId)
+        {
+            QTimer::singleShot(0, this, [this, page]() {
+                goToPage(page);
+                });
+        }
+    }
 }
 

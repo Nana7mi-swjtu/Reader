@@ -13,6 +13,7 @@
 #include <QInputDialog>
 #include "readerform.h"
 #include <QTextDocument>
+#include <QVariant>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -28,6 +29,16 @@ enum WindowType {
     BOOK_READER     // 书籍阅读器
 };
 
+/*-------------------*/
+//书签
+struct bookMark
+{
+    QString chapterId;//章节id
+    QString chapterTitle;//章节名称
+    int pageInChapter;//章节内页码
+};
+/*-------------------*/
+
 // 表示电子书的数据结构
 struct BookInfo {
     QString filePath;        // 文件路径
@@ -36,7 +47,8 @@ struct BookInfo {
     bool isFavorite;         // 是否是收藏
     QDateTime lastReadTime;  // 最后阅读时间
     QList<QString> categories; // 所属分类
-    QMap<int, QString> bookmarks; // 书签列表，键为页码，值为书签描述
+    //QMap<int, QString> bookmarks; // 书签列表，键为页码，值为书签描述
+    QList<bookMark> BookMarks;//书签列表，包含id和页码
     
     BookInfo() : isFavorite(false) {
         totalReadTime = QTime(0, 0);
