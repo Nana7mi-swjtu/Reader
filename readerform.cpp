@@ -133,9 +133,11 @@ QMap<QString, QString> readerform::getTableofContent() const
 			QString normalManifestHref = normalHref(zOpfbasePath, manifestHref);
 
 			QString displayString;
+			qDebug() << normalManifestHref;
 			if (zNcxHrefToTitle.contains(normalManifestHref))
 			{
 				displayString = zNcxHrefToTitle.value(normalManifestHref);
+				qDebug() << tr("yes");
 			}
 			else//如果没有此条目，则使用文件名
 			{
@@ -145,6 +147,7 @@ QMap<QString, QString> readerform::getTableofContent() const
 				{
 					displayString = manifestItem.id;
 				}
+				qDebug() << tr("no");
 			}
 			tocDisplayMap.insert(spineItem.idref, displayString);
 		}
@@ -792,6 +795,7 @@ bool readerform::parseNcxFile(const QString& ncxFilePathInZip)
 					xml.readNext();
 					if (xml.isStartElement() && xml.name().toString() == "navPoint")
 					{
+						qDebug() << tr("ncx");
 						parseNcxNavPoint(xml);
 					}
 				}
@@ -810,7 +814,7 @@ bool readerform::parseNcxFile(const QString& ncxFilePathInZip)
 
 void readerform::parseNcxNavPoint(QXmlStreamReader& xml)
 {
-	if (!xml.isStartElement() || xml.name().toString() == "navPoint")
+	if (!xml.isStartElement() || xml.name().toString() != "navPoint")
 	{
 		return;
 	}
