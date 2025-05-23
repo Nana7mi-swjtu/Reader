@@ -14,6 +14,7 @@
 #include "readerform.h"
 #include <QTextDocument>
 #include <QVariant>
+#include <QSettings>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -231,6 +232,11 @@ private:
     void updateBookmarkComboBox();
 
     // QObject interface
+    QSettings* m_settings; // 配置文件对象
+    // 保存阅读进度
+    void saveReadingProgress();
+    // 恢复阅读进度
+    void restoreReadingProgress();
 public:
     virtual bool eventFilter(QObject *watched, QEvent *event) override;
 };

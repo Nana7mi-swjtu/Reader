@@ -31,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     , zCurrentPage(1)//初始化章节页码
     , zTotalPage(1)//初始化总页码
     , zIsScorll(false)//初始化
+    , m_settings(new QSettings("YourCompany", "YourApp")) // 初始化配置文件对象
 {
     ui->setupUi(this);
 
@@ -50,7 +51,10 @@ MainWindow::MainWindow(QWidget *parent)
     /*-----------------------------*/
     connect(ui->readerTextBrowser->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::onReaderScroll);//连接 QTextBrowser 滚动条的 valueChanged 信号
     /*-----------------------------*/
-    
+
+        // 恢复阅读进度
+    restoreReadingProgress();
+
     // 初始化主题 - 根据系统时间自动选择主题
     QTime currentTime = QTime::currentTime();
     if (currentTime.hour() >= 19 || currentTime.hour() < 7) {
@@ -133,7 +137,11 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 }
 MainWindow::~MainWindow()
 {
+    // 保存阅读进度
+    saveReadingProgress();
     delete ui;
+    // 删除配置文件对象
+    delete m_settings;
 }
 
 void MainWindow::setupUI()
@@ -1877,6 +1885,34 @@ void MainWindow::on_bookmarkComboBox_currentIndexChanged(int index)
                 goToPage(page);
                 });
         }
+    }
+}
+
+//保存当前阅读的书籍路径、章节 ID 和章节内页码到配置文件中
+void MainWindow::saveReadingProgress()
+{
+    if (!zCurrentBookFikePath.isEmpty() && !zCurrentChapterId.isEmpty()) {
+        m_settings->setValue("ReadingProgress/BookPath", zCurrentBookFikePath);
+        m_settings->setValue("ReadingProgress/ChapterId", zCurrentChapterId);
+        m_settings->setValue("ReadingProgress/Page", zCurrentPage);
+    }
+}
+
+//从配置文件中读取之前保存的阅读进度，并根据该进度打开对应的书籍、章节，并跳转到相应的页码
+void MainWindow::restoreReadingProgress()
+{
+    QString bookPath = m_settings->value("ReadingProgress/BookPath").toString();
+    QString chapterId = m_settings->value("ReadingProgress/ChapterId").toString();
+    int page = m_settings->value("ReadingProgress/Page", 1).toInt();
+
+    if (!bookPath.isEmpty() && !chapterId.isEmpty() && allBooks.contains(bookPath)) {
+        openBook(bookPath);
+
+        // 等待书籍打开完成后加载章节
+        QTimer::singleShot(0, this, [this, chapterId, page]() {
+            loadChapter(chapterId);
+            goToPage(page);
+            });
     }
 }
 
