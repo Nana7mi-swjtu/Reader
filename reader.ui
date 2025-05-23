@@ -542,16 +542,16 @@
             </spacer>
            </item>
            <item>
-            <widget class="QPushButton" name="bookmarkButton">
-             <property name="text">
-              <string>添加书签</string>
+            <widget class="QComboBox" name="bookmarkComboBox">
+             <property name="placeholderText">
+              <string>选择书签</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QComboBox" name="bookmarkComboBox">
-             <property name="placeholderText">
-              <string>选择书签</string>
+            <widget class="QPushButton" name="bookmarkButton">
+             <property name="text">
+              <string>添加书签</string>
              </property>
             </widget>
            </item>
@@ -635,7 +635,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
               <string>1</string>
              </property>
              <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
              </property>
             </widget>
            </item>
@@ -658,7 +658,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
               <string>1</string>
              </property>
              <property name="alignment">
-              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+              <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
              </property>
             </widget>
            </item>
