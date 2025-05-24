@@ -91,3 +91,6 @@ private:
 	//¹æ·¶hrefÂ·¾¶
 	QString normalHref(const QString& opfBase, const QString& relHref) const;
 };
+
+void saveReadingPosition(const QString& filePath, const QString& chapterId, int page);
+QPair<QString, int> restoreReadingPosition(const QString& filePath);
