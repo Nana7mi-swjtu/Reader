@@ -31,7 +31,6 @@ MainWindow::MainWindow(QWidget *parent)
     , zCurrentPage(1)//初始化章节页码
     , zTotalPage(1)//初始化总页码
     , zIsScorll(false)//初始化
-    , m_settings(new QSettings("YourCompany", "YourApp")) // 初始化配置文件对象
 {
     ui->setupUi(this);
 
@@ -51,9 +50,6 @@ MainWindow::MainWindow(QWidget *parent)
     /*-----------------------------*/
     connect(ui->readerTextBrowser->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::onReaderScroll);//连接 QTextBrowser 滚动条的 valueChanged 信号
     /*-----------------------------*/
-
-        // 恢复阅读进度
-    restoreReadingProgress();
 
     // 初始化主题 - 根据系统时间自动选择主题
     QTime currentTime = QTime::currentTime();
@@ -137,11 +133,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 }
 MainWindow::~MainWindow()
 {
-    // 保存阅读进度
-    saveReadingProgress();
     delete ui;
-    // 删除配置文件对象
-    delete m_settings;
 }
 
 void MainWindow::setupUI()
@@ -597,6 +589,11 @@ void MainWindow::on_sortByRecentButton_clicked()
 
 void MainWindow::on_closeBookButton_clicked()
 {
+    // 关闭书籍时保存书签
+    if (!zCurrentBookFikePath.isEmpty())
+    {
+        saveBookmarkInfo(zCurrentBookFikePath); // 调用保存函数
+    }
     // 获取当前窗口索引
     QList<QListWidgetItem*> selectedItems = ui->windowListWidget->selectedItems();
     if (!selectedItems.isEmpty()) {
@@ -1888,31 +1885,136 @@ void MainWindow::on_bookmarkComboBox_currentIndexChanged(int index)
     }
 }
 
-//保存当前阅读的书籍路径、章节 ID 和章节内页码到配置文件中
-void MainWindow::saveReadingProgress()
-{
-    if (!zCurrentBookFikePath.isEmpty() && !zCurrentChapterId.isEmpty()) {
-        m_settings->setValue("ReadingProgress/BookPath", zCurrentBookFikePath);
-        m_settings->setValue("ReadingProgress/ChapterId", zCurrentChapterId);
-        m_settings->setValue("ReadingProgress/Page", zCurrentPage);
+// 保存阅读记录
+void MainWindow::saveReadingRecord(const QString& filePath) {
+    if (allBooks.contains(filePath)) {
+        BookInfo& book = allBooks[filePath];
+        book.lastReadRecord.chapterId = zCurrentChapterId;
+        book.lastReadRecord.chapterTitle = zChapterDocument->metaInformation(QTextDocument::DocumentTitle);
+        book.lastReadRecord.pageInChapter = zCurrentPage;
+
+        QFileInfo fileInfo(filePath);
+        QString categoryDir;
+        for (const QString& category : book.categories) {
+            if (m_categories.contains(category)) {
+                categoryDir = QDir::currentPath() + "/" + category;
+                break;
+            }
+        }
+        if (!categoryDir.isEmpty()) {
+            QString bookDir = categoryDir + "/" + fileInfo.baseName();
+            QDir().mkpath(bookDir);
+            QString recordFilePath = bookDir + "/record";
+            QFile recordFile(recordFilePath);
+            if (recordFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QTextStream out(&recordFile);
+                out << book.lastReadRecord.chapterId << "\n";
+                out << book.lastReadRecord.chapterTitle << "\n";
+                out << book.lastReadRecord.pageInChapter;
+                recordFile.close();
+            }
+        }
     }
 }
 
-//从配置文件中读取之前保存的阅读进度，并根据该进度打开对应的书籍、章节，并跳转到相应的页码
-void MainWindow::restoreReadingProgress()
-{
-    QString bookPath = m_settings->value("ReadingProgress/BookPath").toString();
-    QString chapterId = m_settings->value("ReadingProgress/ChapterId").toString();
-    int page = m_settings->value("ReadingProgress/Page", 1).toInt();
+// 加载阅读记录
+void MainWindow::loadReadingRecord(const QString& filePath) {
+    if (allBooks.contains(filePath)) {
+        BookInfo& book = allBooks[filePath];
+        QFileInfo fileInfo(filePath);
+        QString categoryDir;
+        for (const QString& category : book.categories) {
+            if (m_categories.contains(category)) {
+                categoryDir = QDir::currentPath() + "/" + category;
+                break;
+            }
+        }
+        if (!categoryDir.isEmpty()) {
+            QString bookDir = categoryDir + "/" + fileInfo.baseName();
+            QString recordFilePath = bookDir + "/record";
+            QFile recordFile(recordFilePath);
+            if (recordFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream in(&recordFile);
+                book.lastReadRecord.chapterId = in.readLine();
+                book.lastReadRecord.chapterTitle = in.readLine();
+                book.lastReadRecord.pageInChapter = in.readLine().toInt();
+                recordFile.close();
 
-    if (!bookPath.isEmpty() && !chapterId.isEmpty() && allBooks.contains(bookPath)) {
-        openBook(bookPath);
-
-        // 等待书籍打开完成后加载章节
-        QTimer::singleShot(0, this, [this, chapterId, page]() {
-            loadChapter(chapterId);
-            goToPage(page);
-            });
+                // 跳转到最后阅读位置
+                loadChapter(book.lastReadRecord.chapterId);
+                goToPage(book.lastReadRecord.pageInChapter);
+            }
+        }
     }
 }
 
+// 保存书签信息
+void MainWindow::saveBookmarkInfo(const QString& filePath) {
+    if (allBooks.contains(filePath)) {
+        BookInfo& book = allBooks[filePath];
+        QFileInfo fileInfo(filePath);
+        QString categoryDir;
+        for (const QString& category : book.categories) {
+            if (m_categories.contains(category)) {
+                categoryDir = QDir::currentPath() + "/" + category;
+                break;
+            }
+        }
+        if (!categoryDir.isEmpty()) {
+            QString bookDir = categoryDir + "/" + fileInfo.baseName();
+            QDir().mkpath(bookDir);
+            QString bookmarkFilePath = bookDir + "/bookmarkmessage";
+            QFile bookmarkFile(bookmarkFilePath);
+            if (bookmarkFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QTextStream out(&bookmarkFile);
+                for (const bookMark& bookmark : book.BookMarks) {
+                    out << bookmark.chapterId << "\n";
+                    out << bookmark.chapterTitle << "\n";
+                    out << bookmark.pageInChapter << "\n";
+                }
+                bookmarkFile.close();
+            }
+        }
+    }
+}
+
+void MainWindow::saveBookmarkInfo(const QString& filePath) {
+    // 检查书籍是否存在于存储列表中
+    if (!allBooks.contains(filePath)) return;
+    
+    // 获取书籍信息
+    BookInfo& book = allBooks[filePath];
+    QFileInfo fileInfo(filePath); // 获取文件路径信息（用于提取书名）
+    
+    // 查找书籍所属分类（取第一个分类，可根据需求扩展）
+    QString categoryDir;
+    if (!book.categories.isEmpty() && m_categories.contains(book.categories.first())) {
+        categoryDir = QDir::currentPath() + "/" + book.categories.first(); // 分类目录路径
+    } else {
+        qWarning() << "not found category!";
+        return;
+    }
+    
+    // 创建书籍目录（分类/书名）
+    QString bookDir = categoryDir + "/" + fileInfo.baseName(); // 书名目录路径
+    QDir().mkpath(bookDir); // 自动创建多级目录（若不存在）
+    
+    // 书签文件路径
+    QString bookmarkFilePath = bookDir + "/bookmarkmessage";
+    QFile bookmarkFile(bookmarkFilePath); // 创建文件对象
+    
+    // 写入书签数据
+    if (bookmarkFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&bookmarkFile); // 文本流写入
+        for (const bookMark& bookmark : book.BookMarks) {
+            // 按行写入：chapterId、chapterTitle、pageInChapter
+            out << bookmark.chapterId << "\n";
+            out << bookmark.chapterTitle << "\n";
+            out << bookmark.pageInChapter << "\n";
+        }
+        bookmarkFile.close();
+        qDebug() << "Succeed!：" << bookmarkFilePath;
+    } else {
+        qWarning() << "Failed!：" << bookmarkFile.errorString();
+    }
+}

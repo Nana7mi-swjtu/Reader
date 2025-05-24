@@ -7,6 +7,7 @@
 #include <QString>
 #include <QTime>
 #include <QDateTime>
+#include <QFile> 
 #include <QFileInfo>
 #include <QIcon>
 #include <QMenu>
@@ -14,7 +15,8 @@
 #include "readerform.h"
 #include <QTextDocument>
 #include <QVariant>
-#include <QSettings>
+#include <QTextStream>
+#include <QDir>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -145,6 +147,13 @@ private:
     int zTotalPage;//总页数
     bool zIsScorll;//防止滑动和滚动递归触发
 
+    // 保存阅读记录
+    void saveReadingRecord(const QString& filePath); 
+    // 加载阅读记录
+    void loadReadingRecord(const QString& filePath); 
+    // 保存书签信息
+    void saveBookmarkInfo(const QString& filePath);
+
     // 存储所有电子书信息
     QMap<QString, BookInfo> allBooks;
     
@@ -232,11 +241,6 @@ private:
     void updateBookmarkComboBox();
 
     // QObject interface
-    QSettings* m_settings; // 配置文件对象
-    // 保存阅读进度
-    void saveReadingProgress();
-    // 恢复阅读进度
-    void restoreReadingProgress();
 public:
     virtual bool eventFilter(QObject *watched, QEvent *event) override;
 };
