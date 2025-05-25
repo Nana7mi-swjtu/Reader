@@ -154,6 +154,11 @@ private:
     // 保存书签信息
     void saveBookmarkInfo(const QString& filePath);
 
+    // 阅读记录文件路径
+    QString recordFilePath = "/record";
+    // 书签文件路径
+    QString bookmarkFilePath = "/bookmarkmessage";
+
     // 存储所有电子书信息
     QMap<QString, BookInfo> allBooks;
     

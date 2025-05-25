@@ -1912,11 +1912,9 @@ void MainWindow::saveReadingRecord(const QString& filePath) {
     for (const QString& category : book.categories) {
         if (m_categories.contains(category)) {
             QString categoryDir = QDir::currentPath() + "/" + category;
-            QString bookDir = categoryDir + "/" + bookBaseName;
+            QString recordFilePath = categoryDir + "/" + bookBaseName + this->recordFilePath;
             QDir().mkpath(bookDir);
-
-            // 声明并初始化 recordFilePath
-            QString recordFilePath = bookDir + "/record";
+            QString recordFilePath = bookDir + this->recordFilePath; // 完整阅读记录路径
             QFile recordFile(recordFilePath);
 
             if (recordFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -1951,36 +1949,51 @@ void MainWindow::loadReadingRecord(const QString& filePath) {
     bool loadedSuccessfully = false;
 
     // 从第一个有效分类加载记录
-    for (const QString& category : book.categories) {
-        if (m_categories.contains(category)) {
-            QString categoryDir = QDir::currentPath() + "/" + category;
-            QString recordFilePath = categoryDir + "/" + bookBaseName + "/record";
-            QFile recordFile(recordFilePath);
-            
-            if (recordFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                QTextStream in(&recordFile);
-                book.lastReadRecord.chapterId = in.readLine();
-                book.lastReadRecord.chapterTitle = in.readLine();
-                book.lastReadRecord.pageInChapter = in.readLine().toInt();
-                recordFile.close();
+    void MainWindow::loadReadingRecord(const QString & filePath) {
+        if (!allBooks.contains(filePath)) return;
+        BookInfo& book = allBooks[filePath];
+        QFileInfo fileInfo(filePath);
+        QString bookBaseName = fileInfo.baseName();
+        bool loadedSuccessfully = false;
 
-                // 跳转到最后阅读位置
-                loadChapter(book.lastReadRecord.chapterId);
-                goToPage(book.lastReadRecord.pageInChapter);
-                
-                qDebug() << "From category" << category << "Loading successful!";
-                loadedSuccessfully = true;
-                break;
+        for (const QString& category : book.categories) {
+            if (m_categories.contains(category)) {
+                // 使用 QDir 规范路径拼接
+                QDir categoryDir(QDir::currentPath());
+                categoryDir.mkpath(category); // 确保分类目录存在
+
+                // 构建书籍子目录路径：category/bookBaseName
+                QDir bookDir(categoryDir.filePath(category));
+                bookDir.mkpath(bookBaseName); // 确保书籍目录存在
+
+                // 完整路径：category/bookBaseName/record
+                QString recordFilePath = bookDir.filePath(bookBaseName + "/record");
+
+                QFile recordFile(recordFilePath);
+                if (recordFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                    QTextStream in(&recordFile);
+                    book.lastReadRecord.chapterId = in.readLine();
+                    book.lastReadRecord.chapterTitle = in.readLine();
+                    book.lastReadRecord.pageInChapter = in.readLine().toInt();
+                    recordFile.close();
+
+                    // 跳转到最后阅读位置
+                    loadChapter(book.lastReadRecord.chapterId);
+                    goToPage(book.lastReadRecord.pageInChapter);
+
+                    qDebug() << "Successfully loaded record from:" << recordFilePath;
+                    loadedSuccessfully = true;
+                    break;
+                }
+                else {
+                    qWarning() << "Failed to load record from:" << recordFilePath << ", Error:" << recordFile.errorString();
+                }
             }
         }
+        if (!loadedSuccessfully) {
+            qWarning() << "No valid record file found for this book!";
+        }
     }
-
-    // 若未找到有效分类或记录文件，输出错误并返回
-    if (!loadedSuccessfully) {
-        qWarning() << "No valid category found, please classify first!";
-        return;
-    }
-}
 
 //书签保存信息
 void MainWindow::saveBookmarkInfo(const QString& filePath) {
@@ -1999,8 +2012,7 @@ void MainWindow::saveBookmarkInfo(const QString& filePath) {
 
             // 创建书籍目录（若不存在）
             QDir().mkpath(bookDir);
-            // 声明并初始化 bookmarkFilePath
-            QString bookmarkFilePath = bookDir + "/bookmarkmessage";
+            QString bookmarkFilePath = bookDir + this->bookmarkFilePath; // 完整书签路径
             QFile bookmarkFile(bookmarkFilePath);
 
             // 写入书签数据
