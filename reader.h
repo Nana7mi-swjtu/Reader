@@ -53,6 +53,8 @@ struct BookInfo {
     //QMap<int, QString> bookmarks; // 书签列表，键为页码，值为书签描述
     QList<bookMark> BookMarks;//书签列表，包含id和页码
     
+    bookMark lastReadRecord;
+
     BookInfo() : isFavorite(false) {
         totalReadTime = QTime(0, 0);
     }
