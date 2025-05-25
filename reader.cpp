@@ -593,6 +593,7 @@ void MainWindow::on_closeBookButton_clicked()
     if (!zCurrentBookFikePath.isEmpty())
     {
         saveBookmarkInfo(zCurrentBookFikePath); // 调用保存函数
+        saveReadingRecord(zCurrentBookFikePath); // 调用保存阅读记录函数
     }
     // 获取当前窗口索引
     QList<QListWidgetItem*> selectedItems = ui->windowListWidget->selectedItems();
@@ -1913,10 +1914,11 @@ void MainWindow::saveReadingRecord(const QString& filePath) {
             QString categoryDir = QDir::currentPath() + "/" + category;
             QString bookDir = categoryDir + "/" + bookBaseName;
             QDir().mkpath(bookDir);
-            
+
+            // 声明并初始化 recordFilePath
             QString recordFilePath = bookDir + "/record";
             QFile recordFile(recordFilePath);
-            
+
             if (recordFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
                 QTextStream out(&recordFile);
                 out << book.lastReadRecord.chapterId << "\n";
@@ -1925,7 +1927,8 @@ void MainWindow::saveReadingRecord(const QString& filePath) {
                 recordFile.close();
                 qDebug() << "Successfully saved reading history to category!" << category;
                 savedToAnyCategory = true;
-            } else {
+            }
+            else {
                 qWarning() << "Unable to save to category!" << category << " wrong!" << recordFile.errorString();
             }
         }
@@ -1956,8 +1959,6 @@ void MainWindow::loadReadingRecord(const QString& filePath) {
             
             if (recordFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
                 QTextStream in(&recordFile);
-                in.setCodec("UTF-8");
-                
                 book.lastReadRecord.chapterId = in.readLine();
                 book.lastReadRecord.chapterTitle = in.readLine();
                 book.lastReadRecord.pageInChapter = in.readLine().toInt();
@@ -1984,42 +1985,44 @@ void MainWindow::loadReadingRecord(const QString& filePath) {
 //书签保存信息
 void MainWindow::saveBookmarkInfo(const QString& filePath) {
     if (!allBooks.contains(filePath)) return;
-    
+
     BookInfo& book = allBooks[filePath];
     QFileInfo fileInfo(filePath);
     QString bookBaseName = fileInfo.baseName();
     bool savedToAnyCategory = false; // 标记是否成功保存到任何分类
-    
+
     // 遍历所有分类，保存到每个有效分类
     for (const QString& category : book.categories) {
         if (m_categories.contains(category)) {
             QString categoryDir = QDir::currentPath() + "/" + category;
             QString bookDir = categoryDir + "/" + bookBaseName;
-            
+
             // 创建书籍目录（若不存在）
             QDir().mkpath(bookDir);
+            // 声明并初始化 bookmarkFilePath
             QString bookmarkFilePath = bookDir + "/bookmarkmessage";
             QFile bookmarkFile(bookmarkFilePath);
-            
+
             // 写入书签数据
             if (bookmarkFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
                 QTextStream out(&bookmarkFile);
-                
+
                 for (const bookMark& bookmark : book.BookMarks) {
                     out << bookmark.chapterId << "\n";
                     out << bookmark.chapterTitle << "\n";
                     out << bookmark.pageInChapter << "\n";
                 }
-                
+
                 bookmarkFile.close();
                 qDebug() << "Bookmark Succeed!:" << category << " file path:" << bookmarkFilePath;
                 savedToAnyCategory = true;
-            } else {
+            }
+            else {
                 qWarning() << "Bookmark Fail!" << category << " Wrong!" << bookmarkFile.errorString();
             }
         }
     }
-    
+
     // 若未保存到任何分类，输出警告
     if (!savedToAnyCategory) {
         qWarning() << "No valid category found, unable to save bookmark file!";
