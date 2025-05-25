@@ -866,3 +866,34 @@ void readerform::parseNcxNavPoint(QXmlStreamReader& xml)
 		}
 	}
 }
+
+void readerform::saveReadingPosition(const QString& filePath, const QString& chapterId, int page)
+{
+	QString saveFilePath = QDir::homePath() + "/.myReader/reading_positions/" + QFileInfo(filePath).fileName() + ".pos";
+	QFile file(saveFilePath);
+	if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+		zLastError = tr("Failed to open save file for writing: %1").arg(saveFilePath);
+		qWarning() << zLastError;
+		return;
+	}
+
+	QTextStream out(&file);
+	out << chapterId << "\n" << page;
+	file.close();
+}
+
+QPair<QString, int> readerform::restoreReadingPosition(const QString& filePath)
+{
+	QString saveFilePath = QDir::homePath() + "/.myReader/reading_positions/" + QFileInfo(filePath).fileName() + ".pos";
+	QFile file(saveFilePath);
+	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+		return QPair<QString, int>("", 1); // 默认返回第一章第一页
+	}
+
+	QTextStream in(&file);
+	QString chapterId = in.readLine();
+	int page = in.readLine().toInt();
+	file.close();
+
+	return QPair<QString, int>(chapterId, page);
+}

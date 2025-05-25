@@ -1880,3 +1880,203 @@ void MainWindow::on_bookmarkComboBox_currentIndexChanged(int index)
     }
 }
 
+// 修改后的关闭书籍按钮点击事件处理函数
+void MainWindow::on_closeBookButton_clicked_Reader() {
+    // 获取当前窗口索引
+    QList<QListWidgetItem*> selectedItems = ui->windowListWidget->selectedItems();
+    if (!selectedItems.isEmpty()) {
+        int index = selectedItems.first()->data(Qt::UserRole).toInt();
+        if (m_windows[index].type == BOOK_READER) {
+            // 保存阅读位置
+            QString currentFilePath = m_windows[index].identifier;
+            QString currentChapterId = zCurrentChapterId;
+            int currentPage = zCurrentPage;
+            zEpubParser->saveReadingPosition(currentFilePath, currentChapterId, currentPage);
+            removeWindow(index);
+        }
+    }
+}
+
+// 修改后的打开书籍函数
+void MainWindow::openBook_Reader(const QString& filePath) {
+    if (!allBooks.contains(filePath)) {
+        return;
+    }
+
+    // 恢复阅读位置
+    QPair<QString, int> readingPosition = zEpubParser->restoreReadingPosition(filePath);
+    QString chapterId = readingPosition.first;
+    int page = readingPosition.second;
+
+    // 如果没有保存的阅读位置，则默认加载第一章
+    if (chapterId.isEmpty()) {
+        chapterId = zCurrentBookSpineId.first();
+        page = 1;
+    }
+
+    // 加载指定章节和页码
+    loadChapter_Reader(chapterId);
+    goToPage_Reader(page);
+
+    // 更新窗口信息
+    BookInfo& book = allBooks[filePath];
+    book.lastReadTime = QDateTime::currentDateTime();
+
+    // 检查是否已经打开了这本书
+    for (int i = 0; i < m_windows.size(); ++i) {
+        if (m_windows[i].type == BOOK_READER && m_windows[i].identifier == filePath) {
+            // 已经打开，直接切换到此窗口
+            ui->windowListWidget->item(i)->setSelected(true);
+            switchToWindow(i);
+            return;
+        }
+    }
+
+    addWindow(BOOK_READER, book.title, filePath);
+    ui->windowListWidget->item(ui->windowListWidget->count() - 1)->setSelected(true);
+    switchToWindow(m_windows.size() - 1);
+}
+
+// 修改后的加载章节函数
+void MainWindow::loadChapter_Reader(const QString& itemId) {
+    if (!zEpubParser) {
+        qWarning() << "zEpubParser is NULL";
+        zChapterDocument->setHtml("<p>错误：EPUB解析器未被正确初始化。</p>");
+        zCurrentChapterId.clear();
+        updatePagination_Reader();
+        goToPage_Reader(1);
+        return;
+    }
+
+    if (zCurrentBookFikePath.isEmpty()) {
+        qWarning() << "zCurrentBookFilePath is NULL";
+        zChapterDocument->setHtml("<p>错误：当前未打开EPUB书籍</p>");
+        updatePagination_Reader();
+        goToPage_Reader(1);
+        return;
+    }
+
+    zCurrentChapterId = itemId;
+    QString chapterHtml = zEpubParser->getContentById(itemId);
+
+    if (chapterHtml.isEmpty()) {
+        QString errorMessage = zEpubParser->getLastError();
+        if (!errorMessage.isEmpty()) {
+            qWarning() << "getContentById failed (error):" << errorMessage;
+            chapterHtml = tr("<p>加载章节 '%1' 失败: %2</p>").arg(itemId).arg(errorMessage);
+        }
+        else {
+            qWarning() << "getContentById failed";
+            chapterHtml = tr("<p>章节 '%1' 为空").arg(itemId);
+        }
+    }
+
+    zIsScorll = true;
+
+    QFont currentFont = zChapterDocument->defaultFont();
+    currentFont.setPointSize(m_currentFontSize);
+    zChapterDocument->setDefaultFont(currentFont);
+
+    zChapterDocument->setHtml(chapterHtml);
+
+    updatePagination_Reader();
+
+    goToPage_Reader(1);
+
+    zCurrentBookItemIndex = zCurrentBookSpineId.indexOf(itemId);
+
+    zIsScorll = false;
+
+    QGraphicsOpacityEffect* effect = qobject_cast<QGraphicsOpacityEffect*>(ui->readerTextBrowser->graphicsEffect());
+    if (effect) {
+        effect->setOpacity(0.0);
+        QPropertyAnimation* animation = new QPropertyAnimation(effect, "opacity", this);
+        animation->setDuration(300);
+        animation->setStartValue(0.0);
+        animation->setEndValue(1.0);
+        animation->setEasingCurve(QEasingCurve::InOutQuad);
+        animation->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+
+    // 更新章节按钮状态
+    QPushButton* prevChapterButton = findChild<QPushButton*>("prevChapterButton");
+    QPushButton* nextChapterButton = findChild<QPushButton*>("nextChapterButton");
+
+    if (prevChapterButton && nextChapterButton) {
+        prevChapterButton->setEnabled(zCurrentBookItemIndex > 0);
+        nextChapterButton->setEnabled(zCurrentBookItemIndex < zCurrentBookSpineId.size() - 1);
+    }
+}
+
+// 修改后的更新分页函数
+void MainWindow::updatePagination_Reader() {
+    if (!zChapterDocument || !ui->readerTextBrowser->viewport()) {
+        return;
+    }
+
+    QFont docFont = zChapterDocument->defaultFont();
+    if (docFont.pointSize() != m_currentFontSize) {
+        docFont.setPointSize(m_currentFontSize);
+        zChapterDocument->setDefaultFont(docFont);
+    }
+
+    QSizeF viewPointSize = ui->readerTextBrowser->viewport()->size();
+    if (viewPointSize.height() <= 0 || viewPointSize.width() <= 0) {
+        zTotalPage = 1;
+    }
+    else {
+        zChapterDocument->setPageSize(viewPointSize);
+        zTotalPage = zChapterDocument->pageCount();
+        if (zTotalPage == 0) {
+            zTotalPage = 1;
+        }
+    }
+
+    if (zCurrentPage > zTotalPage) {
+        zCurrentPage = zTotalPage;
+    }
+    if (zCurrentPage < 1) {
+        zCurrentPage = 1;
+    }
+
+    zIsScorll = true;
+    ui->pageSlider->setRange(1, zTotalPage);
+    ui->pageSlider->setValue(zCurrentPage);
+    ui->pageSlider->setEnabled(zTotalPage > 1);
+    zIsScorll = false;
+
+    ui->currentPageLabel->setText(QString::number(zCurrentPage));
+    ui->totalPagesLabel->setText(QString::number(zTotalPage));
+}
+
+// 修改后的跳转到指定页码函数
+void MainWindow::goToPage_Reader(int pageNum) {
+    if (!zChapterDocument || zTotalPage == 0) {
+        return;
+    }
+
+    int targetPage = qBound(1, pageNum, zTotalPage);
+
+    zCurrentPage = targetPage;
+
+    qreal PageHight = zChapterDocument->pageSize().height();
+    if (PageHight <= 0) {
+        if (ui->pageSlider->value() != zCurrentPage) {
+            zIsScorll = true;
+            ui->pageSlider->setValue(zCurrentPage);
+            zIsScorll = false;
+        }
+        return;
+    }
+
+    int scrollPos = qRound((zCurrentPage - 1) * PageHight);
+
+    zIsScorll = true;
+    ui->readerTextBrowser->verticalScrollBar()->setValue(scrollPos);
+    if (ui->pageSlider->value() != zCurrentPage) {
+        ui->pageSlider->setValue(zCurrentPage);
+    }
+    zIsScorll = false;
+
+    ui->currentPageLabel->setText(QString::number(zCurrentPage));
+}

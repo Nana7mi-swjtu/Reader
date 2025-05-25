@@ -10,6 +10,9 @@
 #include <QXmlStreamReader>
 #include <QFileInfo>
 #include <QUrl>
+#include <QFile>
+#include <QTextStream>
+#include <QDir>
 
 class QuaZip;
 class QuaZipFile;
