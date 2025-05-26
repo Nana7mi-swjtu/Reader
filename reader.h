@@ -143,6 +143,8 @@ private:
     QTextDocument* zChapterDocument;//文档对象
 
     QList<QString> zCurrentBookSpineId;//章节id列表
+
+    QFont defaultFont;
     int zCurrentBookItemIndex;//章节索引
 
     int zCurrentPage;//当前页码
@@ -152,7 +154,7 @@ private:
     // 保存阅读记录
     void saveReadingRecord(const QString& filePath); 
     // 加载阅读记录
-    void loadReadingRecord(const QString& filePath); 
+    void loadReadingRecord(BookInfo& book,const QString& filePath); 
     // 保存书签信息
     void saveBookmarkInfo(const QString& filePath);
     // 确保书籍有分类，如果没有则创建“未分类”分类
@@ -248,6 +250,11 @@ private:
     void updatePagination();//计算页数
 
     void updateBookmarkComboBox();
+
+    void saveApplicationState();//保存应用进度
+    void loadAllBookData();//加载所有书籍的信息
+    void loadBookMarkFile(BookInfo& book, const QString& filePath);//加载书签
+    //bool helpLoadLastReadRecord(BookInfo& book, const QString& filePath);//辅助保存
 
     // QObject interface
 public:
