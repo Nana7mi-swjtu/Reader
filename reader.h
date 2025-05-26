@@ -155,11 +155,13 @@ private:
     void loadReadingRecord(const QString& filePath); 
     // 保存书签信息
     void saveBookmarkInfo(const QString& filePath);
+    // 确保书籍有分类，如果没有则创建“未分类”分类
+    void ensureBookHasCategory(const QString& filePath);
 
     // 阅读记录文件路径
-    QString recordFilePath = "/record";
+    QString recordFilePath;
     // 书签文件路径
-    QString bookmarkFilePath = "/bookmarkmessage";
+    QString bookmarkFilePath;
 
     // 存储所有电子书信息
     QMap<QString, BookInfo> allBooks;

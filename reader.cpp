@@ -31,6 +31,8 @@ MainWindow::MainWindow(QWidget *parent)
     , zCurrentPage(1)//初始化章节页码
     , zTotalPage(1)//初始化总页码
     , zIsScorll(false)//初始化
+    , recordFilePath("/record")    // 阅读记录文件路径
+    , bookmarkFilePath("/bookmarkmessage")    // 书签文件路径
 {
     ui->setupUi(this);
 
@@ -1895,7 +1897,6 @@ void MainWindow::on_bookmarkComboBox_currentIndexChanged(int index)
     }
 }
 
-//保存阅读进度
 void MainWindow::saveReadingRecord(const QString& filePath) {
     if (!allBooks.contains(filePath)) return;
 
@@ -1903,7 +1904,7 @@ void MainWindow::saveReadingRecord(const QString& filePath) {
     book.lastReadRecord.chapterId = zCurrentChapterId;
     book.lastReadRecord.chapterTitle = zChapterDocument->metaInformation(QTextDocument::DocumentTitle);
     book.lastReadRecord.pageInChapter = zCurrentPage;
-
+    ensureBookHasCategory(filePath); // 确保书籍有分类
     QFileInfo fileInfo(filePath);
     QString bookBaseName = fileInfo.baseName();
     bool savedToAnyCategory = false;
@@ -1912,9 +1913,8 @@ void MainWindow::saveReadingRecord(const QString& filePath) {
     for (const QString& category : book.categories) {
         if (m_categories.contains(category)) {
             QString categoryDir = QDir::currentPath() + "/" + category;
+            QDir().mkpath(categoryDir);
             QString recordFilePath = categoryDir + "/" + bookBaseName + this->recordFilePath;
-            QDir().mkpath(bookDir);
-            QString recordFilePath = bookDir + this->recordFilePath; // 完整阅读记录路径
             QFile recordFile(recordFilePath);
 
             if (recordFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -1939,17 +1939,8 @@ void MainWindow::saveReadingRecord(const QString& filePath) {
     }
 }
 
-//加载阅读进度
-void MainWindow::loadReadingRecord(const QString& filePath) {
-    if (!allBooks.contains(filePath)) return;
-
-    BookInfo& book = allBooks[filePath];
-    QFileInfo fileInfo(filePath);
-    QString bookBaseName = fileInfo.baseName();
-    bool loadedSuccessfully = false;
-
-    // 从第一个有效分类加载记录
-    void MainWindow::loadReadingRecord(const QString & filePath) {
+// 从第一个有效分类加载记录
+    void MainWindow::loadReadingRecord(const QString & filePath){
         if (!allBooks.contains(filePath)) return;
         BookInfo& book = allBooks[filePath];
         QFileInfo fileInfo(filePath);
@@ -1967,7 +1958,7 @@ void MainWindow::loadReadingRecord(const QString& filePath) {
                 bookDir.mkpath(bookBaseName); // 确保书籍目录存在
 
                 // 完整路径：category/bookBaseName/record
-                QString recordFilePath = bookDir.filePath(bookBaseName + "/record");
+                QString recordFilePath = bookDir.filePath("/record");
 
                 QFile recordFile(recordFilePath);
                 if (recordFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -1995,48 +1986,62 @@ void MainWindow::loadReadingRecord(const QString& filePath) {
         }
     }
 
-//书签保存信息
-void MainWindow::saveBookmarkInfo(const QString& filePath) {
-    if (!allBooks.contains(filePath)) return;
+    //书签保存信息
+    void MainWindow::saveBookmarkInfo(const QString& filePath) {
+        if (!allBooks.contains(filePath)) return;
 
-    BookInfo& book = allBooks[filePath];
-    QFileInfo fileInfo(filePath);
-    QString bookBaseName = fileInfo.baseName();
-    bool savedToAnyCategory = false; // 标记是否成功保存到任何分类
+        BookInfo& book = allBooks[filePath];
+        ensureBookHasCategory(filePath); // 确保书籍有分类
 
-    // 遍历所有分类，保存到每个有效分类
-    for (const QString& category : book.categories) {
-        if (m_categories.contains(category)) {
-            QString categoryDir = QDir::currentPath() + "/" + category;
-            QString bookDir = categoryDir + "/" + bookBaseName;
+        QFileInfo fileInfo(filePath);
+        QString bookBaseName = fileInfo.baseName();
+        bool savedToAnyCategory = false; // 标记是否成功保存到任何分类
 
-            // 创建书籍目录（若不存在）
-            QDir().mkpath(bookDir);
-            QString bookmarkFilePath = bookDir + this->bookmarkFilePath; // 完整书签路径
-            QFile bookmarkFile(bookmarkFilePath);
+        // 遍历所有分类，保存到每个有效分类
+        for (const QString& category : book.categories) {
+            if (m_categories.contains(category)) {
+                QString categoryDir = QDir::currentPath() + "/" + category;
+                QString bookDir = categoryDir + "/" + bookBaseName;
 
-            // 写入书签数据
-            if (bookmarkFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                QTextStream out(&bookmarkFile);
+                // 创建书籍目录（若不存在）
+                QDir().mkpath(bookDir);
+                QString bookmarkFilePath = bookDir + this->bookmarkFilePath; // 完整书签路径
+                QFile bookmarkFile(bookmarkFilePath);
 
-                for (const bookMark& bookmark : book.BookMarks) {
-                    out << bookmark.chapterId << "\n";
-                    out << bookmark.chapterTitle << "\n";
-                    out << bookmark.pageInChapter << "\n";
+                // 写入书签数据
+                if (bookmarkFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                    QTextStream out(&bookmarkFile);
+
+                    for (const bookMark& bookmark : book.BookMarks) {
+                        out << bookmark.chapterId << "\n";
+                        out << bookmark.chapterTitle << "\n";
+                        out << bookmark.pageInChapter << "\n";
+                    }
+
+                    bookmarkFile.close();
+                    qDebug() << "Bookmark Succeed!:" << category << " file path:" << bookmarkFilePath;
+                    savedToAnyCategory = true;
                 }
+                else {
+                    qWarning() << "Bookmark Fail!" << category << " Wrong!" << bookmarkFile.errorString();
+                }
+            }
+        }
 
-                bookmarkFile.close();
-                qDebug() << "Bookmark Succeed!:" << category << " file path:" << bookmarkFilePath;
-                savedToAnyCategory = true;
-            }
-            else {
-                qWarning() << "Bookmark Fail!" << category << " Wrong!" << bookmarkFile.errorString();
-            }
+        // 若未保存到任何分类，输出警告
+        if (!savedToAnyCategory) {
+            qWarning() << "No valid category found, unable to save bookmark file!";
         }
     }
 
-    // 若未保存到任何分类，输出警告
-    if (!savedToAnyCategory) {
-        qWarning() << "No valid category found, unable to save bookmark file!";
+//创建未分类分类
+void MainWindow::ensureBookHasCategory(const QString& filePath)
+{
+    if (!allBooks.contains(filePath)) return;
+    BookInfo& book = allBooks[filePath];
+    if (book.categories.isEmpty()) {
+        QString uncategorized = "未分类";
+        createCategory(uncategorized);
+        addBookToCategory(filePath, uncategorized);
     }
 }
