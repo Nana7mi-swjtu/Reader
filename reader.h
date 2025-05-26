@@ -7,6 +7,7 @@
 #include <QString>
 #include <QTime>
 #include <QDateTime>
+#include <QFile> 
 #include <QFileInfo>
 #include <QIcon>
 #include <QMenu>
@@ -14,6 +15,8 @@
 #include "readerform.h"
 #include <QTextDocument>
 #include <QVariant>
+#include <QTextStream>
+#include <QDir>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -50,6 +53,8 @@ struct BookInfo {
     //QMap<int, QString> bookmarks; // 书签列表，键为页码，值为书签描述
     QList<bookMark> BookMarks;//书签列表，包含id和页码
     
+    bookMark lastReadRecord;
+
     BookInfo() : isFavorite(false) {
         totalReadTime = QTime(0, 0);
     }
@@ -138,11 +143,27 @@ private:
     QTextDocument* zChapterDocument;//文档对象
 
     QList<QString> zCurrentBookSpineId;//章节id列表
+
+    QFont defaultFont;
     int zCurrentBookItemIndex;//章节索引
 
     int zCurrentPage;//当前页码
     int zTotalPage;//总页数
     bool zIsScorll;//防止滑动和滚动递归触发
+
+    // 保存阅读记录
+    void saveReadingRecord(const QString& filePath); 
+    // 加载阅读记录
+    void loadReadingRecord(BookInfo& book,const QString& filePath); 
+    // 保存书签信息
+    void saveBookmarkInfo(const QString& filePath);
+    // 确保书籍有分类，如果没有则创建“未分类”分类
+    void ensureBookHasCategory(const QString& filePath);
+
+    // 阅读记录文件路径
+    QString recordFilePath;
+    // 书签文件路径
+    QString bookmarkFilePath;
 
     // 存储所有电子书信息
     QMap<QString, BookInfo> allBooks;
@@ -229,6 +250,11 @@ private:
     void updatePagination();//计算页数
 
     void updateBookmarkComboBox();
+
+    void saveApplicationState();//保存应用进度
+    void loadAllBookData();//加载所有书籍的信息
+    void loadBookMarkFile(BookInfo& book, const QString& filePath);//加载书签
+    //bool helpLoadLastReadRecord(BookInfo& book, const QString& filePath);//辅助保存
 
     // QObject interface
 public:
