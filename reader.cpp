@@ -44,8 +44,9 @@ MainWindow::MainWindow(QWidget *parent)
     /*--------------------------------*/
 
     setupUI();
-    loadSampleBooks();
-    loadAllBookData();
+    /*loadSampleBooks();*/
+    /*loadAllBookData();*/
+    loadApplicationState();
     initWindowList();
     refreshBookLists();
     refreshCategoriesList();
@@ -583,7 +584,7 @@ void MainWindow::on_addBookButton_clicked()
             allBooks[filePath] = newBook;
 
             /*---------*/
-            ensureBookHasCategory(filePath);
+            /*ensureBookHasCategory(filePath);*/
             BookInfo& AddedBook = allBooks[filePath];
             loadBookMarkFile(AddedBook,filePath);
             loadReadingRecord(AddedBook,filePath);
@@ -995,7 +996,7 @@ void MainWindow::openBook(const QString &filePath)
     
     /*-----------------------------------------------------*/
 
-    ensureBookHasCategory(filePath);//确保分类存在
+    //ensureBookHasCategory(filePath);//确保分类存在
 
     zEpubParser->closeEpub();//先关闭
 
@@ -2106,7 +2107,7 @@ void MainWindow::ensureBookHasCategory(const QString& filePath)
     if (!allBooks.contains(filePath)) return;
     BookInfo& book = allBooks[filePath];
     if (book.categories.isEmpty()) {
-        QString uncategorized = "未分类";
+            QString uncategorized = "未分类";
         createCategory(uncategorized);
         addBookToCategory(filePath, uncategorized);
     }
@@ -2114,6 +2115,12 @@ void MainWindow::ensureBookHasCategory(const QString& filePath)
 /*----------------------------------------------------*/
 void MainWindow::saveApplicationState()
 {
+    /*-------------*/
+    QSettings setting("MyReaderOrg", "MyReaderApp");
+    saveBookResigtry(setting);
+    saveCategoryState(setting);
+    /*-------------*/
+
     if (!zCurrentBookFikePath.isEmpty() && allBooks.contains(zCurrentBookFikePath))
     {
         saveReadingRecord(zCurrentBookFikePath);
@@ -2182,3 +2189,87 @@ void MainWindow::loadAllBookData()
 //    return true;
 //}
 /*----------------------------------------------------*/
+
+void MainWindow::loadApplicationState()
+{
+    QSettings setting("MyReaderOrg", "MyReaderApp");
+    qDebug() << "setting file path" << setting.fileName();
+    loadBookResigtry(setting);
+    loadCategotyState(setting);
+
+    loadAllBookData();//替换构造函数的loadAllBookData
+}
+
+void MainWindow::saveBookResigtry(QSettings& setting)
+{
+    setting.beginGroup("AllBookResigtry");
+    setting.setValue("paths", QVariant::fromValue(allBooks.keys()));
+    setting.endGroup();
+
+    for (const QString& path : allBooks.keys())
+    {
+        const BookInfo& book = allBooks[path];
+        setting.beginGroup("BookDetail/" + QFileInfo(path).fileName());
+        setting.setValue("title", book.title);
+        setting.setValue("isFavorite", book.isFavorite);
+        setting.setValue("totalReadTime", book.totalReadTime);
+        setting.setValue("lastReadTime", book.lastReadTime);
+        setting.endGroup();
+    }
+}
+
+void MainWindow::loadBookResigtry(QSettings& setting)
+{
+    setting.beginGroup("AllBookResigtry");
+    QStringList bookPaths = setting.value("paths").toStringList();
+    setting.endGroup();
+
+    if(!bookPaths.isEmpty())
+        for (const QString& path : bookPaths)
+        {
+            setting.beginGroup("BookDetail/" + QFileInfo(path).fileName());
+            BookInfo book;
+            book.filePath = path;
+            book.title = setting.value("title").toString();
+            book.isFavorite = setting.value("isFavorite",false).toBool();
+            book.totalReadTime = setting.value("totalReadTime",QTime(0,0)).toTime();
+            book.lastReadTime = setting.value("lastReadTime",QDateTime::currentDateTime()).toDateTime();
+
+            allBooks[path] = book;
+            setting.endGroup();
+        }
+}
+
+void MainWindow::saveCategoryState(QSettings& setting)
+{
+    setting.beginGroup("categorys");
+    setting.remove("");
+    setting.setValue("names", QVariant::fromValue(m_categories.keys()));
+
+    for (auto it = m_categories.begin(); it != m_categories.end(); ++it)
+    {
+        setting.setValue(it.key() + "/books" ,QVariant::fromValue(it.value().books));
+    }
+
+    setting.endGroup();
+}
+
+void MainWindow::loadCategotyState(QSettings& setting)
+{
+    setting.beginGroup("categorys");
+    QStringList categoryNames = setting.value("names").toStringList();
+
+    for (const QString& categoryName : categoryNames)
+    {
+        createCategory(categoryName);
+        QStringList cateBookPath = setting.value(categoryName + "/books").toStringList();
+        for (const QString& bookPath : cateBookPath)
+        {
+            if (allBooks.contains(bookPath))
+            {
+                addBookToCategory(bookPath, categoryName);
+            }
+        }
+    }
+    setting.endGroup();
+}

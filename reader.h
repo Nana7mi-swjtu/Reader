@@ -17,6 +17,7 @@
 #include <QVariant>
 #include <QTextStream>
 #include <QDir>
+#include <QSettings>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -255,6 +256,14 @@ private:
     void loadAllBookData();//加载所有书籍的信息
     void loadBookMarkFile(BookInfo& book, const QString& filePath);//加载书签
     //bool helpLoadLastReadRecord(BookInfo& book, const QString& filePath);//辅助保存
+
+    /*---------------*/
+    void loadApplicationState();//加载应用进度
+    void saveBookResigtry(QSettings& setting);//保存书籍注册表
+    void loadBookResigtry(QSettings& seeting);//加载书籍注册表
+    void saveCategoryState(QSettings& setting);//保存分类状态
+    void loadCategotyState(QSettings& setting);//加载分类状态
+    /*---------------*/
 
     // QObject interface
 public:
