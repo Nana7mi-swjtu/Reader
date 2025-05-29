@@ -989,6 +989,8 @@ void MainWindow::on_categoryListWidget_itemDoubleClicked(QListWidgetItem *item)
 
 void MainWindow::openBook(const QString &filePath)
 {
+    initWindowList();//防止打开多本书
+
     if (!allBooks.contains(filePath)) {
         return;
     }
@@ -999,7 +1001,7 @@ void MainWindow::openBook(const QString &filePath)
     //ensureBookHasCategory(filePath);//确保分类存在
 
     zEpubParser->closeEpub();//先关闭
-
+    
     if (!zEpubParser->openEpub(filePath))
     {
         QMessageBox::critical(this, tr("failure occur when open epub file"), tr("could open epub file%1,error:%2").arg(filePath).arg(zEpubParser->getLastError()));
