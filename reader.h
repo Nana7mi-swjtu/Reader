@@ -113,6 +113,7 @@ private slots:
     // 窗口列表右键菜单
     void onWindowListContextMenu(const QPoint &pos);
     void onCategoriesListContextMenu(const QPoint &pos);
+    void onCategoryListContextMenu(const QPoint &pos);
     
     // 搜索功能
     void on_searchLineEdit_textChanged(const QString &text);
@@ -158,7 +159,7 @@ private:
     void loadReadingRecord(BookInfo& book,const QString& filePath); 
     // 保存书签信息
     void saveBookmarkInfo(const QString& filePath);
-    // 确保书籍有分类，如果没有则创建“未分类”分类
+    // 确保书籍有分类，如果没有则创建"未分类"分类
     void ensureBookHasCategory(const QString& filePath);
 
     // 阅读记录文件路径
@@ -264,6 +265,9 @@ private:
     void saveCategoryState(QSettings& setting);//保存分类状态
     void loadCategotyState(QSettings& setting);//加载分类状态
     /*---------------*/
+
+    // 添加从分类中删除书籍的方法
+    void removeBookFromCategory(const QString &filePath, const QString &categoryName);
 
     // QObject interface
 public:

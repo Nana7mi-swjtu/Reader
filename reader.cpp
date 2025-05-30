@@ -184,6 +184,11 @@ void MainWindow::setupUI()
     connect(ui->categoriesListWidget, &QWidget::customContextMenuRequested,
             this, &MainWindow::onCategoriesListContextMenu);
     
+    // 设置分类内书籍列表右键菜单
+    ui->categoryListWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->categoryListWidget, &QWidget::customContextMenuRequested,
+            this, &MainWindow::onCategoryListContextMenu);
+    
     // 添加主题切换按钮
     QPushButton *themeButton = new QPushButton(this);
     themeButton->setObjectName("themeButton");
@@ -2274,4 +2279,119 @@ void MainWindow::loadCategotyState(QSettings& setting)
         }
     }
     setting.endGroup();
+}
+
+void MainWindow::removeBookFromCategory(const QString &filePath, const QString &categoryName)
+{
+    m_categories[categoryName].books.removeAll(filePath);
+
+    if (allBooks.contains(filePath)) {
+        allBooks[filePath].categories.removeAll(categoryName);
+    }
+    
+    //将书籍从该分类下的注册表中移除
+    QSettings setting("MyReaderOrg", "MyReaderApp");
+    setting.beginGroup("categorys");
+    QStringList bookPathList = setting.value(categoryName + "/books").toStringList();
+    bookPathList.removeAll(filePath);
+    setting.setValue(categoryName + "/books", QVariant::fromValue(bookPathList));
+    setting.endGroup();
+
+    
+    //如果书籍不属于任何一个分类则把书籍从总注册表中删除
+    if (allBooks[filePath].categories.isEmpty())
+    {
+        //先移除路径
+        setting.beginGroup("AllBookResigtry");
+        QStringList bookPaths = setting.value("paths").toStringList();
+        bookPaths.removeAll(filePath);
+        setting.setValue("paths", QVariant::fromValue(bookPaths));
+        setting.endGroup();
+        //再移除详细信息  
+        setting.beginGroup("BookDetail/" + QFileInfo(filePath).baseName());
+        setting.clear();
+        setting.endGroup();
+        allBooks.remove(filePath);
+
+    }
+    setting.sync();
+    refreshBookLists();
+
+    QFileInfo fileInfo(filePath);
+    QString bookBaseName = fileInfo.baseName();
+    QString categoryDir = QDir::currentPath() + "/" + categoryName;
+    QString bookDirPath = categoryDir + "/" + bookBaseName;
+    // 删除阅读记录文件
+    QDir bookDir(bookDirPath);
+    bookDir.removeRecursively();
+    //QFile recordFile(bookDir + recordFilePath);
+    //if (recordFile.exists())
+    //{
+    //    recordFile.remove();
+    //    qDebug() << "Successfully removed reading record from category:" << categoryName;
+    //}
+    //// 删除书签文件
+    //QFile bookmarkFile(bookDir + bookmarkFilePath);
+    //if (bookmarkFile.exists())
+    //{
+    //    bookmarkFile.remove();
+    //    qDebug() << "Successfully removed bookmark file from category:" << categoryName;
+    //}
+
+    // 刷新分类页面
+    for (int i = 0; i < m_windows.size(); ++i)
+    {
+        if (m_windows[i].type == CATEGORY &&
+            m_windows[i].identifier == categoryName &&
+            ui->contentStackedWidget->currentWidget() == ui->categoryPage)
+        {
+            updateCategoryPage(categoryName);
+            break;
+        }
+    }
+    refreshBookLists();
+}
+
+void MainWindow::onCategoryListContextMenu(const QPoint &pos)
+{
+    QListWidgetItem *item = ui->categoryListWidget->itemAt(pos);
+    if (!item) {
+        return;
+    }
+    
+    QString categoryName;
+    for (int i = 0; i < m_windows.size(); ++i) {
+        if (m_windows[i].type == CATEGORY && 
+            ui->contentStackedWidget->currentWidget() == ui->categoryPage) {
+            categoryName = m_windows[i].identifier;
+            break;
+        }
+    }
+    
+    if (categoryName.isEmpty()) {
+        return;
+    }
+    
+    // 获取选中的书籍路径
+    QString filePath = item->data(Qt::UserRole).toString();
+    if (!allBooks.contains(filePath)) {
+        return;
+    }
+    
+    QMenu contextMenu(this);
+    QAction *openAction = contextMenu.addAction(tr("打开"));
+    QAction *removeAction = contextMenu.addAction(tr("从此分类中移除"));
+    
+    QAction *selectedAction = contextMenu.exec(ui->categoryListWidget->mapToGlobal(pos));
+    
+    if (selectedAction == openAction) {
+        openBook(filePath);
+    } else if (selectedAction == removeAction) {
+        QMessageBox::StandardButton reply = QMessageBox::question(this, tr("从分类中移除"),
+                                        tr("确定要将《%1》从分类 \"%2\" 中移除吗？").arg(allBooks[filePath].title).arg(categoryName),
+                                        QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::Yes) {
+            removeBookFromCategory(filePath, categoryName);
+        }
+    }
 }
