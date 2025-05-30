@@ -2182,3 +2182,39 @@ void MainWindow::loadAllBookData()
 //    return true;
 //}
 /*----------------------------------------------------*/
+
+// 函数删去某本书的某个分类（从某个分类中删去某本书）
+void MainWindow::removeBookFromCategory(const QString& filePath, const QString& categoryName)
+{
+    // 从分类信息中移除该书的路径
+    m_categories[categoryName].books.removeAll(filePath);
+    // 从书籍信息中移除该分类标签
+    allBooks[filePath].categories.removeAll(categoryName);
+    // 删除该分类下该书的阅读记录和书签文件
+    QFileInfo fileInfo(filePath);
+    QString bookBaseName = fileInfo.baseName();
+    QString categoryDir = QDir::currentPath() + "/" + categoryName;
+    QString bookDir = categoryDir + "/" + bookBaseName;
+    // 删除阅读记录文件
+    QFile recordFile(bookDir + recordFilePath);
+    if (recordFile.exists())
+    {
+        recordFile.remove();
+        qDebug() << "Successfully removed reading record from category:" << categoryName;
+    }
+    // 删除书签文件
+    QFile bookmarkFile(bookDir + bookmarkFilePath);
+    if (bookmarkFile.exists())
+    {
+        bookmarkFile.remove();
+        qDebug() << "Successfully removed bookmark file from category:" << categoryName;
+    }
+    // 刷新分类页面
+    for (int i = 0; i < m_windows.size(); ++i) {
+        if (m_windows[i].type == CATEGORY &&
+            m_windows[i].identifier == categoryName &&
+            ui->contentStackedWidget->currentWidget() == ui->categoryPage) {
+            updateCategoryPage(categoryName);
+            break;
+        }
+}

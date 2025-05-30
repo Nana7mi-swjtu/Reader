@@ -85,6 +85,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void removeBookFromCategory(const QString& filePath, const QString& categoryName);
 
 private slots:
     // 窗口选择相关
