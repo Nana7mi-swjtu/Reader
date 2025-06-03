@@ -18,6 +18,7 @@
 #include <QTextStream>
 #include <QDir>
 #include <QSettings>
+#include <QTime>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -132,6 +133,8 @@ private slots:
     void gotoPreviousChapter();
     void gotoNextChapter();
 
+    void updateReadTime();//更新阅读时间
+
 private:
     Ui::MainWindow *ui;
 
@@ -152,6 +155,8 @@ private:
     int zCurrentPage;//当前页码
     int zTotalPage;//总页数
     bool zIsScorll;//防止滑动和滚动递归触发
+
+    QTimer* zTimer;//计时器用来计算阅读时间
 
     // 保存阅读记录
     void saveReadingRecord(const QString& filePath); 

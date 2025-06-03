@@ -37,6 +37,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    zTimer = new QTimer(this);//设置计时器
+    connect(zTimer, &QTimer::timeout, this, &MainWindow::updateReadTime);
+
+
     /*--------------------------------*/
     zChapterDocument = new QTextDocument(this);
     ui->readerTextBrowser->setDocument(zChapterDocument);//设置document实例，方便控制属性
@@ -138,6 +142,11 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 }
 MainWindow::~MainWindow()
 {
+    if (zTimer->isActive())
+    {
+        zTimer->stop();
+    }
+
     /*-------------------*/
     saveApplicationState();
     /*-------------------*/
@@ -619,6 +628,13 @@ void MainWindow::on_sortByRecentButton_clicked()
 
 void MainWindow::on_closeBookButton_clicked()
 {
+    if (zTimer->isActive())
+    {
+        zTimer->stop();
+        updateReadTime();
+    }
+
+
     // 关闭书籍时保存书签
     if (!zCurrentBookFikePath.isEmpty())
     {
@@ -994,6 +1010,12 @@ void MainWindow::on_categoryListWidget_itemDoubleClicked(QListWidgetItem *item)
 
 void MainWindow::openBook(const QString &filePath)
 {
+    if (zTimer->isActive())
+    {
+        zTimer->stop();
+        updateReadTime();
+    }
+
     initWindowList();//防止打开多本书
 
     if (!allBooks.contains(filePath)) {
@@ -1171,6 +1193,7 @@ void MainWindow::openBook(const QString &filePath)
             }
             loadChapter(chapterLoad);
             goToPage(pageLoad);
+            zTimer->start(60000);//1分钟统计一次
             });
     }
 
@@ -2394,4 +2417,23 @@ void MainWindow::onCategoryListContextMenu(const QPoint &pos)
             removeBookFromCategory(filePath, categoryName);
         }
     }
+}
+
+void MainWindow::updateReadTime()
+{
+    if (zCurrentBookFikePath.isEmpty() || !allBooks.contains(zCurrentBookFikePath))
+    {
+        return;
+    }
+
+    BookInfo& currentBook = allBooks[zCurrentBookFikePath];
+
+    int zReadSec = zTimer->interval() / 1000;
+
+    if (zTimer->isActive() && zReadSec > 0)
+    {
+        currentBook.totalReadTime = currentBook.totalReadTime.addSecs(zReadSec);
+    }
+
+    refreshBookLists();
 }
